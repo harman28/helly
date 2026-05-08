@@ -288,7 +288,7 @@
 
 <script>
 const TPC          = '30009902';
-const PROXY        = 'https://corsproxy.io/?url=';
+const WORKER       = 'https://hellyhome-proxy.thatharmansinghworkers.workers.dev';
 const FERRY_API    = 'http://v0.ovapi.nl/tpc/' + TPC;
 const WEATHER_API  = 'https://api.open-meteo.com/v1/forecast?latitude=52.4009&longitude=4.8917&current=temperature_2m,weather_code&timezone=Europe%2FAmsterdam';
 const FERRY_REFRESH   = 30_000;
@@ -362,7 +362,7 @@ function renderFerry(id) {
 
 async function fetchFerries() {
   try {
-    const url = PROXY + encodeURIComponent(FERRY_API);
+    const url = WORKER + '?tpc=' + TPC;
     const res = await fetch(url, { cache: 'no-store' });
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
