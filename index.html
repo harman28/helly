@@ -17,12 +17,44 @@
     overflow: hidden;
   }
 
-  body {
+  /* ── Webcam background ───────────────────────────────────── */
+  #webcam {
+    position: fixed;
+    inset: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  #webcam iframe {
+    position: absolute;
+    top: 50%; left: 50%;
+    width: 177.78vh;
+    height: 56.25vw;
+    min-width: 100%;
+    min-height: 100%;
+    transform: translate(-50%, -50%);
+    border: none;
+  }
+
+  #overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.62);
+    z-index: 1;
+    pointer-events: none;
+  }
+
+  /* ── UI layer ─────────────────────────────────────────────── */
+  #ui {
+    position: fixed;
+    inset: 0;
     display: grid;
     grid-template-columns: 1fr 1fr;
     grid-template-rows: 1fr auto;
     padding: 5vh 5vw;
-    gap: 2vh;
+    gap: 2vh 0;
+    z-index: 3;
   }
 
   /* ── Clock ───────────────────────────────────────────────── */
@@ -35,6 +67,14 @@
     gap: 0.5vh;
   }
 
+  #helly {
+    font-size: clamp(0.7rem, 1.1vw, 1rem);
+    color: rgba(255,255,255,0.45);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    font-weight: 400;
+  }
+
   #clock {
     font-size: clamp(3rem, 8vw, 7rem);
     font-weight: 700;
@@ -45,7 +85,7 @@
 
   #date {
     font-size: clamp(0.7rem, 1.1vw, 1rem);
-    color: rgba(255,255,255,0.3);
+    color: rgba(255,255,255,0.45);
     letter-spacing: 0.12em;
     text-transform: uppercase;
     font-weight: 400;
@@ -66,7 +106,7 @@
     background: #1a1a1a;
     border-radius: 12px;
     padding: clamp(12px, 1.8vh, 20px) clamp(14px, 1.8vw, 22px);
-    border: 0.5px solid rgba(255,255,255,0.06);
+    border: 0.5px solid rgba(255,255,255,0.08);
     width: clamp(200px, 22vw, 320px);
   }
 
@@ -96,7 +136,7 @@
 
   .fc-dest {
     font-size: clamp(10px, 0.9vw, 14px);
-    color: rgba(255,255,255,0.45);
+    color: rgba(255,255,255,0.5);
     font-weight: 400;
   }
 
@@ -110,7 +150,7 @@
 
   .fc-label {
     font-size: clamp(7px, 0.6vw, 10px);
-    color: rgba(255,255,255,0.2);
+    color: rgba(255,255,255,0.3);
     letter-spacing: 0.12em;
     text-transform: uppercase;
     font-weight: 400;
@@ -135,7 +175,7 @@
 
   .fc-then-label {
     font-size: clamp(7px, 0.6vw, 10px);
-    color: rgba(255,255,255,0.2);
+    color: rgba(255,255,255,0.3);
     letter-spacing: 0.12em;
     text-transform: uppercase;
     font-weight: 400;
@@ -144,7 +184,7 @@
   .fc-then-time {
     font-size: clamp(0.85rem, 1.3vw, 1.2rem);
     font-weight: 600;
-    color: rgba(255,255,255,0.35);
+    color: rgba(255,255,255,0.5);
     font-variant-numeric: tabular-nums;
   }
 
@@ -167,22 +207,26 @@
 
   #weather-cond {
     font-size: clamp(0.65rem, 0.9vw, 0.85rem);
-    color: rgba(255,255,255,0.3);
+    color: rgba(255,255,255,0.45);
     letter-spacing: 0.1em;
-    text-transform: uppercase;
-    font-weight: 400;
-  }
-
-  #helly {
-    font-size: clamp(0.7rem, 1.1vw, 1rem);
-    color: rgba(255,255,255,0.3);
-    letter-spacing: 0.12em;
     text-transform: uppercase;
     font-weight: 400;
   }
 </style>
 </head>
 <body>
+
+<div id="webcam">
+  <iframe
+    src="https://www.youtube.com/embed/9Pm6Ji6tm7s?autoplay=1&mute=1&controls=0&loop=1&playlist=9Pm6Ji6tm7s&modestbranding=1&showinfo=0&rel=0"
+    allow="autoplay; encrypted-media"
+    allowfullscreen>
+  </iframe>
+</div>
+
+<div id="overlay"></div>
+
+<div id="ui">
 
 <div id="clock-block">
   <div id="helly">Helly</div>
@@ -230,20 +274,16 @@
   <div id="weather-cond">—</div>
 </div>
 
+</div>
+
 <script>
-/* ─── Config ────────────────────────────────────────────────
-   Ferries: both F4 and F7 depart from TPC 30009902 (NDSM-werf).
-   Weather: Open-Meteo, no API key needed.
-   NDSM-werf coords: 52.4009, 4.8917
-──────────────────────────────────────────────────────────── */
 const TPC          = '30009902';
 const PROXY        = 'https://corsproxy.io/?url=';
 const FERRY_API    = 'http://v0.ovapi.nl/tpc/' + TPC;
-const WEATHER_API  = 'https://api.open-meteo.com/v1/forecast?latitude=52.4009&longitude=4.8917&current=temperature_2m,weathercode&timezone=Europe%2FAmsterdam';
+const WEATHER_API  = 'https://api.open-meteo.com/v1/forecast?latitude=52.4009&longitude=4.8917&current=temperature_2m,weather_code&timezone=Europe%2FAmsterdam';
 const FERRY_REFRESH   = 30_000;
 const WEATHER_REFRESH = 10 * 60_000;
 
-/* ─── Helpers ───────────────────────────────────────────────*/
 function pad2(n) { return String(n).padStart(2, '0'); }
 
 function parseTime(str) {
@@ -269,22 +309,20 @@ function fmtCountdown(secs) {
 
 function fmtClock(t) { return pad2(t.getHours()) + ':' + pad2(t.getMinutes()); }
 
-// WMO weather code → plain text
 function weatherDesc(code) {
-  if (code === 0)           return 'Clear sky';
-  if (code <= 2)            return 'Partly cloudy';
-  if (code === 3)           return 'Overcast';
-  if (code <= 49)           return 'Foggy';
-  if (code <= 55)           return 'Drizzle';
-  if (code <= 65)           return 'Rain';
-  if (code <= 77)           return 'Snow';
-  if (code <= 82)           return 'Rain showers';
-  if (code <= 86)           return 'Snow showers';
-  if (code <= 99)           return 'Thunderstorm';
+  if (code === 0)  return 'Clear sky';
+  if (code <= 2)   return 'Partly cloudy';
+  if (code === 3)  return 'Overcast';
+  if (code <= 49)  return 'Foggy';
+  if (code <= 55)  return 'Drizzle';
+  if (code <= 65)  return 'Rain';
+  if (code <= 77)  return 'Snow';
+  if (code <= 82)  return 'Rain showers';
+  if (code <= 86)  return 'Snow showers';
+  if (code <= 99)  return 'Thunderstorm';
   return '—';
 }
 
-/* ─── Clock ─────────────────────────────────────────────────*/
 const DAYS   = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
@@ -296,7 +334,6 @@ function tickClock() {
     DAYS[now.getDay()] + ' · ' + now.getDate() + ' ' + MONTHS[now.getMonth()];
 }
 
-/* ─── Ferries ───────────────────────────────────────────────*/
 const state = { f4: [], f7: [] };
 let ferryTick = null;
 
@@ -344,28 +381,25 @@ async function fetchFerries() {
   }
 }
 
-/* ─── Weather ───────────────────────────────────────────────*/
 async function fetchWeather() {
   try {
     const res = await fetch(WEATHER_API);
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
     const temp = Math.round(data.current.temperature_2m);
-    const code = data.current.weathercode;
+    const code = data.current.weather_code;
     document.getElementById('weather-temp').textContent = temp + '°';
     document.getElementById('weather-cond').textContent = weatherDesc(code);
   } catch (err) {
     console.error('[weather]', err);
+    setTimeout(fetchWeather, 5000);
   }
 }
 
-/* ─── Boot ──────────────────────────────────────────────────*/
 tickClock();
 setInterval(tickClock, 1000);
-
 fetchFerries();
 setInterval(fetchFerries, FERRY_REFRESH);
-
 fetchWeather();
 setInterval(fetchWeather, WEATHER_REFRESH);
 </script>
