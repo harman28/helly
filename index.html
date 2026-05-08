@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NDSM Veer</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #dce9f5;
+    font-family: 'Inter', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1.25rem;
+    padding: 2rem 1.25rem;
+  }
+
+  .card {
+    background: #ffffff;
+    border-radius: 20px;
+    padding: 2rem 2rem 1.75rem;
+    width: 100%;
+    max-width: 480px;
+  }
+
+  .card-header {
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .line-badge {
+    width: 52px;
+    height: 52px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .line-badge svg {
+    width: 28px;
+    height: 28px;
+    fill: none;
+    stroke: #fff;
+    stroke-width: 1.7;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .f4-badge { background: #7c4dab; }
+  .f7-badge { background: #e8960a; }
+
+  .card-label {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+
+  .line-number {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #8a9ab5;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .destination {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #1a2a4a;
+  }
+
+  .status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #4ade80;
+    margin-left: auto;
+    flex-shrink: 0;
+  }
+  .status-dot.loading { background: #facc15; }
+  .status-dot.offline { background: #f87171; }
+  .status-dot.live    { animation: breathe 2.4s ease-in-out infinite; }
+  @keyframes breathe { 0%,100%{opacity:1} 50%{opacity:0.25} }
+
+  .countdown-wrap {
+    background: #dce9f5;
+    border-radius: 14px;
+    padding: 1rem 1.5rem;
+    text-align: center;
+    margin-bottom: 1.25rem;
+  }
+
+  .countdown-label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: #8a9ab5;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-bottom: 0.3rem;
+  }
+
+  .countdown {
+    font-size: 3.75rem;
+    font-weight: 800;
+    color: #1a2a4a;
+    letter-spacing: -0.03em;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .countdown.c-soon { color: #c47a00; }
+  .countdown.c-now  { color: #c0392b; animation: flash 0.7s step-end infinite; }
+  @keyframes flash { 0%,100%{opacity:1} 50%{opacity:0} }
+
+  .next-after {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.1rem 0.25rem;
+  }
+
+  .next-after-label {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: #8a9ab5;
+  }
+
+  .next-after-time {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #1a2a4a;
+    font-variant-numeric: tabular-nums;
+  }
+
+  @media (min-width: 1200px) {
+    body { gap: 2rem; }
+    .card { max-width: 620px; padding: 2.5rem 2.5rem 2.25rem; border-radius: 26px; }
+    .line-badge { width: 64px; height: 64px; border-radius: 18px; }
+    .line-badge svg { width: 34px; height: 34px; }
+    .destination { font-size: 1.4rem; }
+    .countdown { font-size: 5.5rem; }
+    .next-after-label { font-size: 0.85rem; }
+    .next-after-time  { font-size: 1.05rem; }
+  }
+</style>
+</head>
+<body>
+
+<div class="card">
+  <div class="card-header">
+    <div class="line-badge f4-badge">
+      <svg viewBox="0 0 24 24"><path d="M3 17l1.5-6h15L21 17"/><path d="M3 17a9 9 0 0 0 18 0"/><path d="M8 11V7h8v4"/><line x1="12" y1="2" x2="12" y2="7"/></svg>
+    </div>
+    <div class="card-label">
+      <span class="line-number">F4</span>
+      <span class="destination">Centraal Station</span>
+    </div>
+    <div class="status-dot loading" id="status-f4"></div>
+  </div>
+  <div class="countdown-wrap">
+    <div class="countdown-label">next ferry in</div>
+    <div class="countdown" id="countdown-f4">--:--</div>
+  </div>
+  <div class="next-after">
+    <span class="next-after-label">ferry after that</span>
+    <span class="next-after-time" id="after-f4">—</span>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <div class="line-badge f7-badge">
+      <svg viewBox="0 0 24 24"><path d="M3 17l1.5-6h15L21 17"/><path d="M3 17a9 9 0 0 0 18 0"/><path d="M8 11V7h8v4"/><line x1="12" y1="2" x2="12" y2="7"/></svg>
+    </div>
+    <div class="card-label">
+      <span class="line-number">F7</span>
+      <span class="destination">Pontsteiger</span>
+    </div>
+    <div class="status-dot loading" id="status-f7"></div>
+  </div>
+  <div class="countdown-wrap">
+    <div class="countdown-label">next ferry in</div>
+    <div class="countdown" id="countdown-f7">--:--</div>
+  </div>
+  <div class="next-after">
+    <span class="next-after-label">ferry after that</span>
+    <span class="next-after-time" id="after-f7">—</span>
+  </div>
+</div>
+
+<script>
+/*
+  OVapi TPC codes — NDSM-werf departures:
+    F4 → Centraal Station : 30005093
+    F7 → Pontsteiger      : 30005095
+
+  OVapi is HTTP-only. The corsproxy.io bridge handles this for
+  local file:// and most HTTP origins. For GitHub Pages (HTTPS)
+  replace PROXY with your own Cloudflare Worker URL.
+*/
+const PROXY = 'https://corsproxy.io/?url=';
+const FERRIES = [
+  { id: 'f4', tpc: '30005093' },
+  { id: 'f7', tpc: '30009902' },
+];
+const REFRESH_MS = 30_000;
+
+function pad2(n) { return String(n).padStart(2, '0'); }
+
+function parseTime(str) {
+  if (!str) return null;
+  const m = str.match(/T(\d{2}):(\d{2})/);
+  if (!m) return null;
+  const t = new Date();
+  t.setHours(+m[1], +m[2], 0, 0);
+  if (t < Date.now() - 90_000) t.setDate(t.getDate() + 1);
+  return t;
+}
+
+function secsUntil(t) { return Math.round((t - Date.now()) / 1000); }
+
+function fmtCountdown(secs) {
+  if (secs <= 0) return 'NOW';
+  if (secs < 60) return `0:${pad2(secs)}`;
+  const m = Math.floor(secs / 60);
+  const s = secs % 60;
+  if (m >= 60) return `${Math.floor(m/60)}h ${pad2(m%60)}m`;
+  return `${m}:${pad2(s)}`;
+}
+
+function fmtClock(t) { return `${pad2(t.getHours())}:${pad2(t.getMinutes())}`; }
+
+const state = {};
+FERRIES.forEach(f => { state[f.id] = { departures: [], timer: null }; });
+
+function renderFerry(id) {
+  const deps = state[id].departures.filter(d => secsUntil(d) > -20);
+  const cdEl = document.getElementById('countdown-' + id);
+  const afEl = document.getElementById('after-' + id);
+
+  if (!deps.length) {
+    cdEl.textContent = '--:--';
+    cdEl.className = 'countdown';
+    afEl.textContent = '—';
+    return;
+  }
+
+  const secs = secsUntil(deps[0]);
+  cdEl.textContent = fmtCountdown(secs);
+  cdEl.className = 'countdown' +
+    (secs <= 30 ? ' c-now' : secs <= 180 ? ' c-soon' : '');
+  afEl.textContent = deps[1] ? fmtClock(deps[1]) : '—';
+}
+
+async function fetchFerry(ferry) {
+  const statusEl = document.getElementById('status-' + ferry.id);
+  statusEl.className = 'status-dot loading';
+  try {
+    const url = PROXY + encodeURIComponent('http://v0.ovapi.nl/tpc/' + ferry.tpc);
+    const res = await fetch(url, { cache: 'no-store' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    const passes = data[ferry.tpc]?.Passes;
+    if (!passes) throw new Error('No passes');
+
+    state[ferry.id].departures = Object.values(passes)
+      .filter(p => p.TripStopStatus !== 'CANCEL')
+      .map(p => parseTime(p.ExpectedDepartureTime || p.TargetDepartureTime))
+      .filter(t => t && secsUntil(t) > -20)
+      .sort((a, b) => a - b);
+
+    statusEl.className = 'status-dot live';
+    renderFerry(ferry.id);
+    if (state[ferry.id].timer) clearInterval(state[ferry.id].timer);
+    state[ferry.id].timer = setInterval(() => renderFerry(ferry.id), 1000);
+
+  } catch (err) {
+    console.error('[' + ferry.id + ']', err);
+    statusEl.className = 'status-dot offline';
+    document.getElementById('countdown-' + ferry.id).textContent = '—';
+  }
+}
+
+FERRIES.forEach(f => {
+  fetchFerry(f);
+  setInterval(() => fetchFerry(f), REFRESH_MS);
+});
+</script>
+</body>
+</html>
