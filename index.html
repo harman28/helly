@@ -212,6 +212,14 @@
     text-transform: uppercase;
     font-weight: 400;
   }
+
+  #nudibranch-canvas {
+    position: fixed;
+    z-index: 4;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 1.2s ease;
+  }
 </style>
 </head>
 <body>
@@ -225,6 +233,8 @@
 </div>
 
 <div id="overlay"></div>
+
+<canvas id="nudibranch-canvas"></canvas>
 
 <div id="ui">
 
@@ -278,25 +288,7 @@
 
 <script>
 const TPC          = '30009902';
-const WORKER       = 'https://hellyhome-proxy.thatharmansinghworkers.workers.dev';
-// export default {
-//   async fetch(req) {
-//     const url = new URL(req.url);
-//     const tpc = url.searchParams.get('tpc');
-//     if (!tpc) return new Response('missing tpc', { status: 400 });
-
-//     const upstream = await fetch(`http://v0.ovapi.nl/tpc/${tpc}`);
-//     const body = await upstream.text();
-
-//     return new Response(body, {
-//       headers: {
-//         'Content-Type': 'application/json',
-//         'Access-Control-Allow-Origin': '*',
-//         'Cache-Control': 'no-store',
-//       },
-//     });
-//   }
-// }
+const PROXY        = 'https://corsproxy.io/?url=';
 const FERRY_API    = 'http://v0.ovapi.nl/tpc/' + TPC;
 const WEATHER_API  = 'https://api.open-meteo.com/v1/forecast?latitude=52.4009&longitude=4.8917&current=temperature_2m,weather_code&timezone=Europe%2FAmsterdam';
 const FERRY_REFRESH   = 30_000;
@@ -370,7 +362,7 @@ function renderFerry(id) {
 
 async function fetchFerries() {
   try {
-    const url = WORKER + '?tpc=' + TPC;
+    const url = PROXY + encodeURIComponent(FERRY_API);
     const res = await fetch(url, { cache: 'no-store' });
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
@@ -420,6 +412,95 @@ fetchFerries();
 setInterval(fetchFerries, FERRY_REFRESH);
 fetchWeather();
 setInterval(fetchWeather, WEATHER_REFRESH);
+
+// Nudibranch squirm engine
+(function() {
+  const canvas = document.getElementById('nudibranch-canvas');
+  const ctx = canvas.getContext('2d');
+  const img = new Image();
+  img.src = 'nudibranch.png';
+
+  const W = 45, H = 55; // display size
+  canvas.width = W + 20;
+  canvas.height = H + 20;
+
+  let active = false;
+  let posX, posY, startTime, duration;
+  let rafId = null;
+
+  function scheduleNext() {
+    const wait = (40 + Math.random() * 70) * 1000;
+    setTimeout(startSwim, wait);
+  }
+
+  function startSwim() {
+    posX = (15 + Math.random() * 65) / 100 * window.innerWidth;
+    posY = -H - 20;
+    duration = (22 + Math.random() * 10) * 1000;
+    startTime = performance.now();
+    canvas.style.left = (posX - canvas.width / 2) + 'px';
+    canvas.style.top = posY + 'px';
+    canvas.style.opacity = '0';
+    active = true;
+    setTimeout(() => { canvas.style.opacity = '0.88'; }, 50);
+    if (rafId) cancelAnimationFrame(rafId);
+    rafId = requestAnimationFrame(tick);
+  }
+
+  function tick(now) {
+    if (!active) return;
+    const elapsed = now - startTime;
+    const progress = elapsed / duration;
+
+    if (progress >= 1) {
+      canvas.style.opacity = '0';
+      active = false;
+      scheduleNext();
+      return;
+    }
+
+    // Fade out near end
+    if (progress > 0.88) {
+      canvas.style.opacity = String(1 - (progress - 0.88) / 0.12);
+    }
+
+    // Vertical travel
+    const totalTravel = window.innerHeight + H + 40;
+    posY = -H - 20 + progress * totalTravel;
+
+    // Horizontal drift — slow sine wave
+    const driftX = Math.sin(elapsed / 3200) * 18;
+    canvas.style.left = (posX - canvas.width / 2 + driftX) + 'px';
+    canvas.style.top = posY + 'px';
+
+    // Draw squirming body using sine-wave column displacement
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const t = elapsed / 1000;
+    const slices = 40;
+    const sliceH = H / slices;
+    const offX = (canvas.width - W) / 2;
+
+    for (let i = 0; i < slices; i++) {
+      const srcY = (i / slices) * img.naturalHeight;
+      const srcH = img.naturalHeight / slices;
+      const wave = Math.sin(t * 2.5 - i * 0.35) * (1.5 + i * 0.06);
+      const dx = offX + wave;
+      ctx.drawImage(
+        img,
+        0, srcY, img.naturalWidth, srcH,
+        dx, i * sliceH + 15, W, sliceH + 0.5
+      );
+    }
+
+    rafId = requestAnimationFrame(tick);
+  }
+
+  img.onload = function() {
+    // First appearance after 15-35 seconds
+    // setTimeout(startSwim, (15 + Math.random() * 20) * 1000);
+    setTimeout(startSwim, 2000);
+  };
+})();
 </script>
 </body>
 </html>
