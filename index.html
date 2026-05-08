@@ -5,207 +5,236 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Helly</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap');
 
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-  body {
-    background: #dce9f5;
+  html, body {
+    width: 100%; height: 100%;
+    background: #0f0f0f;
     font-family: 'Inter', sans-serif;
-    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+  }
+
+  body {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr auto;
+    padding: 5vh 5vw;
+    gap: 2vh;
+  }
+
+  /* ── Clock ───────────────────────────────────────────────── */
+  #clock-block {
+    grid-column: 1;
+    grid-row: 1;
+    align-self: start;
     display: flex;
     flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 1.25rem;
-    padding: 2rem 1.25rem;
+    gap: 0.5vh;
   }
 
-  .card {
-    background: #ffffff;
-    border-radius: 20px;
-    padding: 2rem 2rem 1.75rem;
-    width: 100%;
-    max-width: 480px;
+  #clock {
+    font-size: clamp(3rem, 8vw, 7rem);
+    font-weight: 700;
+    color: #ffffff;
+    letter-spacing: -0.04em;
+    line-height: 1;
   }
 
-  .card-header {
+  #date {
+    font-size: clamp(0.7rem, 1.1vw, 1rem);
+    color: rgba(255,255,255,0.3);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    font-weight: 400;
+  }
+
+  /* ── Ferries ─────────────────────────────────────────────── */
+  #ferries {
+    grid-column: 2;
+    grid-row: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 1.2vh;
+    align-self: start;
+    align-items: flex-end;
+  }
+
+  .ferry-card {
+    background: #1a1a1a;
+    border-radius: 12px;
+    padding: clamp(12px, 1.8vh, 20px) clamp(14px, 1.8vw, 22px);
+    border: 0.5px solid rgba(255,255,255,0.06);
+    width: clamp(200px, 22vw, 320px);
+  }
+
+  .fc-header {
     display: flex;
     align-items: center;
-    gap: 0.9rem;
-    margin-bottom: 1.5rem;
+    gap: 0.6vw;
+    margin-bottom: 1.2vh;
   }
 
-  .line-badge {
-    width: 52px;
-    height: 52px;
-    border-radius: 14px;
+  .fc-badge {
+    width: clamp(22px, 2vw, 30px);
+    height: clamp(22px, 2vw, 30px);
+    border-radius: 6px;
     display: flex;
     align-items: center;
     justify-content: center;
+    font-size: clamp(8px, 0.7vw, 11px);
+    font-weight: 700;
+    color: #fff;
     flex-shrink: 0;
-  }
-
-  .line-badge svg {
-    width: 28px;
-    height: 28px;
-    fill: none;
-    stroke: #fff;
-    stroke-width: 1.7;
-    stroke-linecap: round;
-    stroke-linejoin: round;
+    letter-spacing: 0.03em;
   }
 
   .f4-badge { background: #7c4dab; }
   .f7-badge { background: #e8960a; }
 
-  .card-label {
+  .fc-dest {
+    font-size: clamp(10px, 0.9vw, 14px);
+    color: rgba(255,255,255,0.45);
+    font-weight: 400;
+  }
+
+  .fc-main {
     display: flex;
-    flex-direction: column;
-    gap: 1px;
+    align-items: flex-end;
+    justify-content: space-between;
   }
 
-  .line-number {
-    font-size: 0.75rem;
-    font-weight: 600;
-    color: #8a9ab5;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-  }
+  .fc-left { display: flex; flex-direction: column; gap: 2px; }
 
-  .destination {
-    font-size: 1.1rem;
-    font-weight: 700;
-    color: #1a2a4a;
-  }
-
-  .status-dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: #4ade80;
-    margin-left: auto;
-    flex-shrink: 0;
-  }
-  .status-dot.loading { background: #facc15; }
-  .status-dot.offline { background: #f87171; }
-  .status-dot.live    { animation: breathe 2.4s ease-in-out infinite; }
-  @keyframes breathe { 0%,100%{opacity:1} 50%{opacity:0.25} }
-
-  .countdown-wrap {
-    background: #dce9f5;
-    border-radius: 14px;
-    padding: 1rem 1.5rem;
-    text-align: center;
-    margin-bottom: 1.25rem;
-  }
-
-  .countdown-label {
-    font-size: 0.7rem;
-    font-weight: 600;
-    color: #8a9ab5;
+  .fc-label {
+    font-size: clamp(7px, 0.6vw, 10px);
+    color: rgba(255,255,255,0.2);
     letter-spacing: 0.12em;
     text-transform: uppercase;
-    margin-bottom: 0.3rem;
+    font-weight: 400;
   }
 
-  .countdown {
-    font-size: 3.75rem;
+  .fc-countdown {
+    font-size: clamp(1.6rem, 3.2vw, 3rem);
     font-weight: 800;
-    color: #1a2a4a;
+    color: #ffffff;
     letter-spacing: -0.03em;
     line-height: 1;
     font-variant-numeric: tabular-nums;
   }
 
-  .next-after {
+  .fc-right {
     display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0.1rem 0.25rem;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+    padding-bottom: 2px;
   }
 
-  .next-after-label {
-    font-size: 0.75rem;
-    font-weight: 500;
-    color: #8a9ab5;
+  .fc-then-label {
+    font-size: clamp(7px, 0.6vw, 10px);
+    color: rgba(255,255,255,0.2);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    font-weight: 400;
   }
 
-  .next-after-time {
-    font-size: 0.9rem;
+  .fc-then-time {
+    font-size: clamp(0.85rem, 1.3vw, 1.2rem);
     font-weight: 600;
-    color: #1a2a4a;
+    color: rgba(255,255,255,0.35);
     font-variant-numeric: tabular-nums;
   }
 
-  @media (min-width: 1200px) {
-    body { gap: 2rem; }
-    .card { max-width: 620px; padding: 2.5rem 2.5rem 2.25rem; border-radius: 26px; }
-    .line-badge { width: 64px; height: 64px; border-radius: 18px; }
-    .line-badge svg { width: 34px; height: 34px; }
-    .destination { font-size: 1.4rem; }
-    .countdown { font-size: 5.5rem; }
-    .next-after-label { font-size: 0.85rem; }
-    .next-after-time  { font-size: 1.05rem; }
+  /* ── Weather ─────────────────────────────────────────────── */
+  #weather-block {
+    grid-column: 1;
+    grid-row: 2;
+    align-self: end;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4vh;
+  }
+
+  #weather-temp {
+    font-size: clamp(1.4rem, 3vw, 2.8rem);
+    font-weight: 600;
+    color: #ffffff;
+    line-height: 1;
+  }
+
+  #weather-cond {
+    font-size: clamp(0.65rem, 0.9vw, 0.85rem);
+    color: rgba(255,255,255,0.3);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    font-weight: 400;
   }
 </style>
 </head>
 <body>
 
-<div class="card">
-  <div class="card-header">
-    <div class="line-badge f4-badge">
-      <svg viewBox="0 0 24 24"><path d="M3 17l1.5-6h15L21 17"/><path d="M3 17a9 9 0 0 0 18 0"/><path d="M8 11V7h8v4"/><line x1="12" y1="2" x2="12" y2="7"/></svg>
+<div id="clock-block">
+  <div id="clock">--:--</div>
+  <div id="date">—</div>
+</div>
+
+<div id="ferries">
+  <div class="ferry-card">
+    <div class="fc-header">
+      <div class="fc-badge f4-badge">F4</div>
+      <div class="fc-dest">Centraal Station</div>
     </div>
-    <div class="card-label">
-      <span class="line-number">F4</span>
-      <span class="destination">Centraal Station</span>
+    <div class="fc-main">
+      <div class="fc-left">
+        <div class="fc-label">next ferry in</div>
+        <div class="fc-countdown" id="countdown-f4">--:--</div>
+      </div>
+      <div class="fc-right">
+        <div class="fc-then-label">then</div>
+        <div class="fc-then-time" id="after-f4">—</div>
+      </div>
     </div>
-    <div class="status-dot loading" id="status-f4"></div>
   </div>
-  <div class="countdown-wrap">
-    <div class="countdown-label">next ferry in</div>
-    <div class="countdown" id="countdown-f4">--:--</div>
-  </div>
-  <div class="next-after">
-    <span class="next-after-label">ferry after that</span>
-    <span class="next-after-time" id="after-f4">—</span>
+  <div class="ferry-card">
+    <div class="fc-header">
+      <div class="fc-badge f7-badge">F7</div>
+      <div class="fc-dest">Pontsteiger</div>
+    </div>
+    <div class="fc-main">
+      <div class="fc-left">
+        <div class="fc-label">next ferry in</div>
+        <div class="fc-countdown" id="countdown-f7">--:--</div>
+      </div>
+      <div class="fc-right">
+        <div class="fc-then-label">then</div>
+        <div class="fc-then-time" id="after-f7">—</div>
+      </div>
+    </div>
   </div>
 </div>
 
-<div class="card">
-  <div class="card-header">
-    <div class="line-badge f7-badge">
-      <svg viewBox="0 0 24 24"><path d="M3 17l1.5-6h15L21 17"/><path d="M3 17a9 9 0 0 0 18 0"/><path d="M8 11V7h8v4"/><line x1="12" y1="2" x2="12" y2="7"/></svg>
-    </div>
-    <div class="card-label">
-      <span class="line-number">F7</span>
-      <span class="destination">Pontsteiger</span>
-    </div>
-    <div class="status-dot loading" id="status-f7"></div>
-  </div>
-  <div class="countdown-wrap">
-    <div class="countdown-label">next ferry in</div>
-    <div class="countdown" id="countdown-f7">--:--</div>
-  </div>
-  <div class="next-after">
-    <span class="next-after-label">ferry after that</span>
-    <span class="next-after-time" id="after-f7">—</span>
-  </div>
+<div id="weather-block">
+  <div id="weather-temp">--°</div>
+  <div id="weather-cond">—</div>
 </div>
 
 <script>
-/*
-  Both F4 and F7 depart from the same physical stop at NDSM-werf.
-  TPC 30009902 returns all departures from that stop — F4 to
-  Centraal Station and F7 to Pontsteiger mixed together.
-  We fetch once and split by LinePublicNumber.
-*/
-const TPC     = '30009902';
-const PROXY   = 'https://corsproxy.io/?url=';
-const API     = 'http://v0.ovapi.nl/tpc/' + TPC;
-const REFRESH = 30_000;
+/* ─── Config ────────────────────────────────────────────────
+   Ferries: both F4 and F7 depart from TPC 30009902 (NDSM-werf).
+   Weather: Open-Meteo, no API key needed.
+   NDSM-werf coords: 52.4009, 4.8917
+──────────────────────────────────────────────────────────── */
+const TPC          = '30009902';
+const PROXY        = 'https://corsproxy.io/?url=';
+const FERRY_API    = 'http://v0.ovapi.nl/tpc/' + TPC;
+const WEATHER_API  = 'https://api.open-meteo.com/v1/forecast?latitude=52.4009&longitude=4.8917&current=temperature_2m,weathercode&timezone=Europe%2FAmsterdam';
+const FERRY_REFRESH   = 30_000;
+const WEATHER_REFRESH = 10 * 60_000;
 
+/* ─── Helpers ───────────────────────────────────────────────*/
 function pad2(n) { return String(n).padStart(2, '0'); }
 
 function parseTime(str) {
@@ -231,31 +260,53 @@ function fmtCountdown(secs) {
 
 function fmtClock(t) { return pad2(t.getHours()) + ':' + pad2(t.getMinutes()); }
 
+// WMO weather code → plain text
+function weatherDesc(code) {
+  if (code === 0)           return 'Clear sky';
+  if (code <= 2)            return 'Partly cloudy';
+  if (code === 3)           return 'Overcast';
+  if (code <= 49)           return 'Foggy';
+  if (code <= 55)           return 'Drizzle';
+  if (code <= 65)           return 'Rain';
+  if (code <= 77)           return 'Snow';
+  if (code <= 82)           return 'Rain showers';
+  if (code <= 86)           return 'Snow showers';
+  if (code <= 99)           return 'Thunderstorm';
+  return '—';
+}
+
+/* ─── Clock ─────────────────────────────────────────────────*/
+const DAYS   = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+function tickClock() {
+  const now = new Date();
+  document.getElementById('clock').textContent =
+    pad2(now.getHours()) + ':' + pad2(now.getMinutes());
+  document.getElementById('date').textContent =
+    DAYS[now.getDay()] + ' · ' + now.getDate() + ' ' + MONTHS[now.getMonth()];
+}
+
+/* ─── Ferries ───────────────────────────────────────────────*/
 const state = { f4: [], f7: [] };
-let tickTimer = null;
+let ferryTick = null;
 
 function renderFerry(id) {
   const deps = state[id].filter(d => secsUntil(d) > -10);
   const cdEl = document.getElementById('countdown-' + id);
   const afEl = document.getElementById('after-' + id);
-
   if (!deps.length) {
     cdEl.textContent = '--:--';
     afEl.textContent = '—';
     return;
   }
-
   cdEl.textContent = fmtCountdown(secsUntil(deps[0]));
   afEl.textContent = deps[1] ? fmtClock(deps[1]) : '—';
 }
 
-function setStatus(id, s) {
-  document.getElementById('status-' + id).className = 'status-dot ' + s;
-}
-
-async function fetchAll() {
+async function fetchFerries() {
   try {
-    const url = PROXY + encodeURIComponent(API);
+    const url = PROXY + encodeURIComponent(FERRY_API);
     const res = await fetch(url, { cache: 'no-store' });
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
@@ -274,27 +325,40 @@ async function fetchAll() {
     state.f4 = all.filter(p => p.line === 'F4').map(p => p.time);
     state.f7 = all.filter(p => p.line === 'F7').map(p => p.time);
 
-    setStatus('f4', state.f4.length ? 'live' : 'offline');
-    setStatus('f7', state.f7.length ? 'live' : 'offline');
-
     renderFerry('f4');
     renderFerry('f7');
 
-    if (tickTimer) clearInterval(tickTimer);
-    tickTimer = setInterval(() => {
-      renderFerry('f4');
-      renderFerry('f7');
-    }, 1000);
-
+    if (ferryTick) clearInterval(ferryTick);
+    ferryTick = setInterval(() => { renderFerry('f4'); renderFerry('f7'); }, 1000);
   } catch (err) {
-    console.error(err);
-    setStatus('f4', 'offline');
-    setStatus('f7', 'offline');
+    console.error('[ferries]', err);
   }
 }
 
-fetchAll();
-setInterval(fetchAll, REFRESH);
+/* ─── Weather ───────────────────────────────────────────────*/
+async function fetchWeather() {
+  try {
+    const res = await fetch(WEATHER_API);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    const temp = Math.round(data.current.temperature_2m);
+    const code = data.current.weathercode;
+    document.getElementById('weather-temp').textContent = temp + '°';
+    document.getElementById('weather-cond').textContent = weatherDesc(code);
+  } catch (err) {
+    console.error('[weather]', err);
+  }
+}
+
+/* ─── Boot ──────────────────────────────────────────────────*/
+tickClock();
+setInterval(tickClock, 1000);
+
+fetchFerries();
+setInterval(fetchFerries, FERRY_REFRESH);
+
+fetchWeather();
+setInterval(fetchWeather, WEATHER_REFRESH);
 </script>
 </body>
 </html>
