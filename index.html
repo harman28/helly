@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>NDSM Veer</title>
+<title>Helly</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
@@ -118,10 +118,6 @@
     font-variant-numeric: tabular-nums;
   }
 
-  .countdown.c-soon { color: #c47a00; }
-  .countdown.c-now  { color: #c0392b; animation: flash 0.7s step-end infinite; }
-  @keyframes flash { 0%,100%{opacity:1} 50%{opacity:0} }
-
   .next-after {
     display: flex;
     align-items: center;
@@ -200,20 +196,15 @@
 
 <script>
 /*
-  OVapi TPC codes — NDSM-werf departures:
-    F4 → Centraal Station : 30005093
-    F7 → Pontsteiger      : 30005095
-
-  OVapi is HTTP-only. The corsproxy.io bridge handles this for
-  local file:// and most HTTP origins. For GitHub Pages (HTTPS)
-  replace PROXY with your own Cloudflare Worker URL.
+  Both F4 and F7 depart from the same physical stop at NDSM-werf.
+  TPC 30009902 returns all departures from that stop — F4 to
+  Centraal Station and F7 to Pontsteiger mixed together.
+  We fetch once and split by LinePublicNumber.
 */
-const PROXY = 'https://corsproxy.io/?url=';
-const FERRIES = [
-  { id: 'f4', tpc: '30005093' },
-  { id: 'f7', tpc: '30009902' },
-];
-const REFRESH_MS = 30_000;
+const TPC     = '30009902';
+const PROXY   = 'https://corsproxy.io/?url=';
+const API     = 'http://v0.ovapi.nl/tpc/' + TPC;
+const REFRESH = 30_000;
 
 function pad2(n) { return String(n).padStart(2, '0'); }
 
@@ -230,71 +221,80 @@ function parseTime(str) {
 function secsUntil(t) { return Math.round((t - Date.now()) / 1000); }
 
 function fmtCountdown(secs) {
-  if (secs <= 0) return 'NOW';
-  if (secs < 60) return `0:${pad2(secs)}`;
+  if (secs <= 0) return '0:00';
+  if (secs < 60) return '0:' + pad2(secs);
   const m = Math.floor(secs / 60);
   const s = secs % 60;
-  if (m >= 60) return `${Math.floor(m/60)}h ${pad2(m%60)}m`;
-  return `${m}:${pad2(s)}`;
+  if (m >= 60) return Math.floor(m / 60) + 'h ' + pad2(m % 60) + 'm';
+  return m + ':' + pad2(s);
 }
 
-function fmtClock(t) { return `${pad2(t.getHours())}:${pad2(t.getMinutes())}`; }
+function fmtClock(t) { return pad2(t.getHours()) + ':' + pad2(t.getMinutes()); }
 
-const state = {};
-FERRIES.forEach(f => { state[f.id] = { departures: [], timer: null }; });
+const state = { f4: [], f7: [] };
+let tickTimer = null;
 
 function renderFerry(id) {
-  const deps = state[id].departures.filter(d => secsUntil(d) > -20);
+  const deps = state[id].filter(d => secsUntil(d) > -10);
   const cdEl = document.getElementById('countdown-' + id);
   const afEl = document.getElementById('after-' + id);
 
   if (!deps.length) {
     cdEl.textContent = '--:--';
-    cdEl.className = 'countdown';
     afEl.textContent = '—';
     return;
   }
 
-  const secs = secsUntil(deps[0]);
-  cdEl.textContent = fmtCountdown(secs);
-  cdEl.className = 'countdown' +
-    (secs <= 30 ? ' c-now' : secs <= 180 ? ' c-soon' : '');
+  cdEl.textContent = fmtCountdown(secsUntil(deps[0]));
   afEl.textContent = deps[1] ? fmtClock(deps[1]) : '—';
 }
 
-async function fetchFerry(ferry) {
-  const statusEl = document.getElementById('status-' + ferry.id);
-  statusEl.className = 'status-dot loading';
+function setStatus(id, s) {
+  document.getElementById('status-' + id).className = 'status-dot ' + s;
+}
+
+async function fetchAll() {
   try {
-    const url = PROXY + encodeURIComponent('http://v0.ovapi.nl/tpc/' + ferry.tpc);
+    const url = PROXY + encodeURIComponent(API);
     const res = await fetch(url, { cache: 'no-store' });
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
-    const passes = data[ferry.tpc]?.Passes;
+    const passes = data[TPC]?.Passes;
     if (!passes) throw new Error('No passes');
 
-    state[ferry.id].departures = Object.values(passes)
-      .filter(p => p.TripStopStatus !== 'CANCEL')
-      .map(p => parseTime(p.ExpectedDepartureTime || p.TargetDepartureTime))
-      .filter(t => t && secsUntil(t) > -20)
-      .sort((a, b) => a - b);
+    const all = Object.values(passes)
+      .filter(p => p.JourneyStopType === 'FIRST' && p.TripStopStatus !== 'CANCEL')
+      .map(p => ({
+        line: p.LinePublicNumber,
+        time: parseTime(p.ExpectedDepartureTime || p.TargetDepartureTime),
+      }))
+      .filter(p => p.time && secsUntil(p.time) > -10)
+      .sort((a, b) => a.time - b.time);
 
-    statusEl.className = 'status-dot live';
-    renderFerry(ferry.id);
-    if (state[ferry.id].timer) clearInterval(state[ferry.id].timer);
-    state[ferry.id].timer = setInterval(() => renderFerry(ferry.id), 1000);
+    state.f4 = all.filter(p => p.line === 'F4').map(p => p.time);
+    state.f7 = all.filter(p => p.line === 'F7').map(p => p.time);
+
+    setStatus('f4', state.f4.length ? 'live' : 'offline');
+    setStatus('f7', state.f7.length ? 'live' : 'offline');
+
+    renderFerry('f4');
+    renderFerry('f7');
+
+    if (tickTimer) clearInterval(tickTimer);
+    tickTimer = setInterval(() => {
+      renderFerry('f4');
+      renderFerry('f7');
+    }, 1000);
 
   } catch (err) {
-    console.error('[' + ferry.id + ']', err);
-    statusEl.className = 'status-dot offline';
-    document.getElementById('countdown-' + ferry.id).textContent = '—';
+    console.error(err);
+    setStatus('f4', 'offline');
+    setStatus('f7', 'offline');
   }
 }
 
-FERRIES.forEach(f => {
-  fetchFerry(f);
-  setInterval(() => fetchFerry(f), REFRESH_MS);
-});
+fetchAll();
+setInterval(fetchAll, REFRESH);
 </script>
 </body>
 </html>
