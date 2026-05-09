@@ -93,16 +93,12 @@
   }
 
   #world-clocks {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5vh;
+    display: grid;
+    grid-template-columns: auto auto;
+    column-gap: 1em;
+    row-gap: 0.5vh;
     margin-top: 2vh;
-  }
-
-  .world-clock {
-    display: flex;
-    justify-content: space-between;
-    gap: 1.5em;
+    width: fit-content;
     font-size: clamp(0.6rem, 0.9vw, 0.85rem);
     color: rgba(255,255,255,1);
     letter-spacing: 0.12em;
@@ -111,6 +107,8 @@
     font-variant-numeric: tabular-nums;
     text-shadow: 0 1px 4px rgba(0,0,0,1), 0 2px 12px rgba(0,0,0,1), 0 4px 24px rgba(0,0,0,0.9);
   }
+
+  .world-clock { display: contents; }
 
   /* ── Ferries ─────────────────────────────────────────────── */
   #ferries {
