@@ -160,6 +160,14 @@
     font-weight: 400;
   }
 
+  .fc-arrow {
+    cursor: pointer;
+    user-select: none;
+    transition: opacity 0.15s;
+    padding: 0 0.15em;
+  }
+  .fc-arrow:hover { opacity: 0.5; }
+
   .fc-main {
     display: flex;
     align-items: flex-end;
@@ -347,7 +355,7 @@
   <div class="ferry-card">
     <div class="fc-header">
       <div class="fc-badge f4-badge">F4</div>
-      <div class="fc-dest">Centraal Station</div>
+      <div class="fc-dest"><span id="from-f4">NDSM</span><span class="fc-arrow" data-id="f4">→</span><span id="to-f4">Centraal Station</span></div>
     </div>
     <div class="fc-main">
       <div class="fc-left">
@@ -400,9 +408,9 @@
 </button>
 
 <script>
-const TPC          = '30009902';
+const TPC_NDSM     = '30009902';
+const TPC_CENTRAAL = '30009903';
 const WORKER       = 'https://hellyhome-proxy.thatharmansinghworkers.workers.dev';
-const FERRY_API    = 'http://v0.ovapi.nl/tpc/' + TPC;
 const WEATHER_API  = 'https://api.open-meteo.com/v1/forecast?latitude=52.4009&longitude=4.8917&current=temperature_2m,weather_code&timezone=Europe%2FAmsterdam';
 const FERRY_REFRESH   = 30_000;
 const WEATHER_REFRESH = 10 * 60_000;
@@ -477,11 +485,13 @@ function tickClock() {
   });
 }
 
-const state = { f4: [], f7: [] };
-let ferryTick = null;
+const state    = { f4: [], f7: [], f4r: [] };
+const reversed = { f4: false };
+let ferryTick  = null;
 
 function renderFerry(id) {
-  const deps = state[id].filter(d => secsUntil(d) > -10);
+  const src  = (id === 'f4' && reversed.f4) ? state.f4r : state[id];
+  const deps = src.filter(d => secsUntil(d) > -10);
   const cdEl = document.getElementById('countdown-' + id);
   const afEl = document.getElementById('after-' + id);
   if (!deps.length) {
@@ -495,14 +505,17 @@ function renderFerry(id) {
 
 async function fetchFerries() {
   try {
-    const url = WORKER + '?tpc=' + TPC;
-    const res = await fetch(url, { cache: 'no-store' });
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    const data = await res.json();
-    const passes = data[TPC]?.Passes;
-    if (!passes) throw new Error('No passes');
+    const [res1, res2] = await Promise.all([
+      fetch(WORKER + '?tpc=' + TPC_NDSM,     { cache: 'no-store' }),
+      fetch(WORKER + '?tpc=' + TPC_CENTRAAL, { cache: 'no-store' }),
+    ]);
+    if (!res1.ok || !res2.ok) throw new Error('HTTP error');
+    const [data1, data2] = await Promise.all([res1.json(), res2.json()]);
 
-    const all = Object.values(passes)
+    const passes1 = data1[TPC_NDSM]?.Passes;
+    if (!passes1) throw new Error('No NDSM passes');
+
+    const all = Object.values(passes1)
       .filter(p => p.JourneyStopType === 'FIRST' && p.TripStopStatus !== 'CANCEL')
       .map(p => ({
         line: p.LinePublicNumber,
@@ -513,6 +526,13 @@ async function fetchFerries() {
 
     state.f4 = all.filter(p => p.line === 'F4').map(p => p.time);
     state.f7 = all.filter(p => p.line === 'F7').map(p => p.time);
+
+    const passes2 = data2[TPC_CENTRAAL]?.Passes || {};
+    state.f4r = Object.values(passes2)
+      .filter(p => p.LinePublicNumber === 'F4' && p.JourneyStopType === 'FIRST' && p.TripStopStatus !== 'CANCEL')
+      .map(p => parseTime(p.ExpectedDepartureTime || p.TargetDepartureTime))
+      .filter(t => t && secsUntil(t) > -10)
+      .sort((a, b) => a - b);
 
     renderFerry('f4');
     renderFerry('f7');
@@ -563,6 +583,13 @@ document.addEventListener('click', () => {
 });
 
 document.getElementById('settings-panel').addEventListener('click', e => e.stopPropagation());
+
+document.querySelector('.fc-arrow[data-id="f4"]').addEventListener('click', () => {
+  reversed.f4 = !reversed.f4;
+  document.getElementById('from-f4').textContent = reversed.f4 ? 'Centraal Station' : 'NDSM';
+  document.getElementById('to-f4').textContent   = reversed.f4 ? 'NDSM' : 'Centraal Station';
+  renderFerry('f4');
+});
 
 document.getElementById('overlay-slider').addEventListener('input', (e) => {
   manualOpacity = e.target.value / 100;
