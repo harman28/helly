@@ -92,6 +92,16 @@
     text-shadow: 0 1px 4px rgba(0,0,0,1), 0 2px 12px rgba(0,0,0,1), 0 4px 24px rgba(0,0,0,0.9);
   }
 
+  #india-clock {
+    font-size: clamp(0.6rem, 0.85vw, 0.8rem);
+    color: rgba(255,255,255,0.6);
+    letter-spacing: 0.1em;
+    font-weight: 400;
+    font-variant-numeric: tabular-nums;
+    text-shadow: 0 1px 4px rgba(0,0,0,1), 0 2px 12px rgba(0,0,0,1);
+    margin-top: 0.4vh;
+  }
+
   /* ── Ferries ─────────────────────────────────────────────── */
   #ferries {
     grid-column: 2;
@@ -317,6 +327,7 @@
   <div id="helly">Helly</div>
   <div id="clock">--:--</div>
   <div id="date">—</div>
+  <div id="india-clock">—</div>
 </div>
 
 <div id="ferries">
@@ -443,6 +454,8 @@ function tickClock() {
     pad2(now.getHours()) + ':' + pad2(now.getMinutes());
   document.getElementById('date').textContent =
     DAYS[now.getDay()] + ' · ' + now.getDate() + ' ' + MONTHS[now.getMonth()];
+  document.getElementById('india-clock').textContent =
+    now.toLocaleTimeString('en-GB', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: false }) + ' IST';
 }
 
 const state = { f4: [], f7: [] };
