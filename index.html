@@ -355,7 +355,7 @@
 </div>
 
 <div id="weather-block">
-  <div id="weather-temp">--°<span id="weather-emoji"></span></div>
+  <div id="weather-temp"><span id="weather-temp-val">--°</span><span id="weather-emoji"></span></div>
   <div id="weather-cond">—</div>
 </div>
 
@@ -499,7 +499,7 @@ async function fetchWeather() {
     const data = await res.json();
     const temp = Math.round(data.current.temperature_2m);
     const code = data.current.weather_code;
-    document.getElementById('weather-temp').textContent = temp + '°';
+    document.getElementById('weather-temp-val').textContent = temp + '°';
     document.getElementById('weather-emoji').textContent = weatherEmoji(code);
     document.getElementById('weather-cond').textContent = weatherDesc(code);
   } catch (err) {
