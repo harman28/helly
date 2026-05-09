@@ -100,6 +100,9 @@
   }
 
   .world-clock {
+    display: flex;
+    justify-content: space-between;
+    gap: 1.5em;
     font-size: clamp(0.6rem, 0.9vw, 0.85rem);
     color: rgba(255,255,255,1);
     letter-spacing: 0.12em;
@@ -335,9 +338,9 @@
   <div id="clock">--:--</div>
   <div id="date">—</div>
   <div id="world-clocks">
-    <div class="world-clock" id="clock-delhi">—</div>
-    <div class="world-clock" id="clock-dallas">—</div>
-    <div class="world-clock" id="clock-sf">—</div>
+    <div class="world-clock"><span class="wc-city">New Delhi</span><span id="clock-delhi">—</span></div>
+    <div class="world-clock"><span class="wc-city">Dallas</span><span id="clock-dallas">—</span></div>
+    <div class="world-clock"><span class="wc-city">San Francisco</span><span id="clock-sf">—</span></div>
   </div>
 </div>
 
@@ -471,7 +474,7 @@ function tickClock() {
     { id: 'sf',     label: 'San Francisco', tz: 'America/Los_Angeles' },
   ].forEach(({ id, label, tz }) => {
     const t = now.toLocaleTimeString('en-GB', { timeZone: tz, hour: '2-digit', minute: '2-digit', hour12: false });
-    document.getElementById('clock-' + id).textContent = label + ' ' + t;
+    document.getElementById('clock-' + id).textContent = t;
   });
 }
 
