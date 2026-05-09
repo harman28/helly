@@ -437,9 +437,7 @@ function renderFerry(id) {
     afEl.textContent = '—';
     return;
   }
-  const secs = secsUntil(deps[0]);
-  cdEl.textContent = fmtCountdown(secs);
-  cdEl.style.color = secs % 10 === 0 ? '#ff3333' : '';
+  cdEl.textContent = fmtCountdown(secsUntil(deps[0]));
   afEl.textContent = deps[1] ? fmtClock(deps[1]) : '—';
 }
 
