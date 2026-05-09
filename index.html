@@ -212,6 +212,11 @@
     line-height: 1;
   }
 
+  #weather-emoji {
+    font-size: clamp(0.8rem, 1.2vw, 1.1rem);
+    line-height: 1;
+  }
+
   #weather-cond {
     font-size: clamp(0.65rem, 0.9vw, 0.85rem);
     color: rgba(255,255,255,0.45);
@@ -348,6 +353,7 @@
 
 <div id="weather-block">
   <div id="weather-temp">--°</div>
+  <div id="weather-emoji"></div>
   <div id="weather-cond">—</div>
 </div>
 
@@ -399,6 +405,20 @@ function fmtCountdown(secs) {
 }
 
 function fmtClock(t) { return pad2(t.getHours()) + ':' + pad2(t.getMinutes()); }
+
+function weatherEmoji(code) {
+  if (code === 0)  return '☀️';
+  if (code <= 2)   return '⛅';
+  if (code === 3)  return '☁️';
+  if (code <= 49)  return '🌫️';
+  if (code <= 55)  return '🌦️';
+  if (code <= 65)  return '🌧️';
+  if (code <= 77)  return '❄️';
+  if (code <= 82)  return '🌧️';
+  if (code <= 86)  return '❄️';
+  if (code <= 99)  return '⛈️';
+  return '';
+}
 
 function weatherDesc(code) {
   if (code === 0)  return 'Clear sky';
@@ -480,6 +500,7 @@ async function fetchWeather() {
     const temp = Math.round(data.current.temperature_2m);
     const code = data.current.weather_code;
     document.getElementById('weather-temp').textContent = temp + '°';
+    document.getElementById('weather-emoji').textContent = weatherEmoji(code);
     document.getElementById('weather-cond').textContent = weatherDesc(code);
   } catch (err) {
     console.error('[weather]', err);
