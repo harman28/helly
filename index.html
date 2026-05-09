@@ -213,15 +213,16 @@
   }
 
   #weather-emoji {
-    font-size: clamp(0.8rem, 1.2vw, 1.1rem);
-    line-height: 1;
+    font-size: 0.75em;
+    margin-left: 0.25em;
+    vertical-align: middle;
   }
 
   #weather-emoji:empty { display: none; }
 
   #weather-cond {
     font-size: clamp(0.65rem, 0.9vw, 0.85rem);
-    color: rgba(255,255,255,0.45);
+    color: rgba(255,255,255,0.75);
     letter-spacing: 0.1em;
     text-transform: uppercase;
     font-weight: 400;
@@ -354,8 +355,7 @@
 </div>
 
 <div id="weather-block">
-  <div id="weather-temp">--°</div>
-  <div id="weather-emoji"></div>
+  <div id="weather-temp">--°<span id="weather-emoji"></span></div>
   <div id="weather-cond">—</div>
 </div>
 
@@ -409,16 +409,14 @@ function fmtCountdown(secs) {
 function fmtClock(t) { return pad2(t.getHours()) + ':' + pad2(t.getMinutes()); }
 
 function weatherEmoji(code) {
-  if (code === 0)  return '☀️';
-  if (code <= 2)   return '⛅';
-  if (code === 3)  return '☁️';
-  if (code <= 49)  return '🌫️';
-  if (code <= 55)  return '🌦️';
-  if (code <= 65)  return '🌧️';
-  if (code <= 77)  return '❄️';
-  if (code <= 82)  return '🌧️';
-  if (code <= 86)  return '❄️';
-  if (code <= 99)  return '⛈️';
+  if (code === 0)  return '☀';  // ☀ clear
+  if (code <= 2)   return '⛅';  // ⛅ partly cloudy
+  if (code === 3)  return '☁';  // ☁ overcast
+  if (code <= 49)  return '☁';  // ☁ fog
+  if (code <= 65)  return '☔';  // ☔ rain/drizzle
+  if (code <= 82)  return '☔';  // ☔ snow/rain showers
+  if (code <= 86)  return '❄';  // ❄ snow
+  if (code <= 99)  return '⚡';  // ⚡ thunderstorm
   return '';
 }
 
