@@ -40,7 +40,6 @@
   #overlay {
     position: fixed;
     inset: 0;
-    background: rgba(0,0,0,0.62);
     z-index: 1;
     pointer-events: none;
   }
@@ -69,10 +68,11 @@
 
   #helly {
     font-size: clamp(0.7rem, 1.1vw, 1rem);
-    color: rgba(255,255,255,0.45);
+    color: rgba(255,255,255,0.85);
     letter-spacing: 0.12em;
     text-transform: uppercase;
     font-weight: 400;
+    text-shadow: 0 1px 6px rgba(0,0,0,0.9);
   }
 
   #clock {
@@ -85,10 +85,11 @@
 
   #date {
     font-size: clamp(0.7rem, 1.1vw, 1rem);
-    color: rgba(255,255,255,0.45);
+    color: rgba(255,255,255,0.85);
     letter-spacing: 0.12em;
     text-transform: uppercase;
     font-weight: 400;
+    text-shadow: 0 1px 6px rgba(0,0,0,0.9);
   }
 
   /* ── Ferries ─────────────────────────────────────────────── */
@@ -193,9 +194,15 @@
     grid-column: 1;
     grid-row: 2;
     align-self: end;
-    display: flex;
+    display: inline-flex;
     flex-direction: column;
     gap: 0.4vh;
+    background: #1a1a1a;
+    border-radius: 12px;
+    padding: clamp(10px, 1.4vh, 16px) clamp(12px, 1.4vw, 18px);
+    border: 0.5px solid rgba(255,255,255,0.08);
+    align-self: end;
+    justify-self: start;
   }
 
   #weather-temp {
@@ -219,6 +226,66 @@
     pointer-events: none;
     opacity: 0;
     transition: opacity 1.2s ease;
+  }
+
+  /* ── Settings ─────────────────────────────────────────────── */
+  #settings-btn {
+    position: fixed;
+    bottom: 2vh;
+    right: 2vw;
+    z-index: 10;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 8px;
+    opacity: 0.25;
+    transition: opacity 0.2s;
+  }
+
+  #settings-btn:hover { opacity: 0.8; }
+
+  #settings-btn svg {
+    width: clamp(16px, 1.4vw, 22px);
+    height: clamp(16px, 1.4vw, 22px);
+    fill: #ffffff;
+  }
+
+  #settings-panel {
+    position: fixed;
+    bottom: calc(2vh + 44px);
+    right: 2vw;
+    z-index: 10;
+    background: #1a1a1a;
+    border: 0.5px solid rgba(255,255,255,0.1);
+    border-radius: 10px;
+    padding: 14px 16px;
+    display: none;
+    flex-direction: column;
+    gap: 10px;
+    min-width: 180px;
+  }
+
+  #settings-panel.open { display: flex; }
+
+  #settings-panel .setting-label {
+    font-size: 0.65rem;
+    color: rgba(255,255,255,0.4);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    font-weight: 400;
+  }
+
+  #settings-panel input[type=range] {
+    width: 100%;
+    accent-color: #ffffff;
+    cursor: pointer;
+  }
+
+  #overlay-value {
+    font-size: 0.7rem;
+    color: rgba(255,255,255,0.5);
+    font-family: monospace;
+    text-align: right;
   }
 </style>
 </head>
@@ -285,6 +352,20 @@
 </div>
 
 </div>
+
+<!-- Settings -->
+<div id="settings-panel">
+  <div class="setting-label">Overlay opacity</div>
+  <input type="range" id="overlay-slider" min="0" max="80" step="5" value="55">
+  <div id="overlay-value">55%</div>
+</div>
+
+<button id="settings-btn" title="Settings">
+  <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+    <path d="M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/>
+    <path fill-rule="evenodd" d="M10.075 2.567a2 2 0 0 1 3.85 0l.191.688a1 1 0 0 0 1.414.612l.643-.302a2 2 0 0 1 2.722 2.722l-.302.643a1 1 0 0 0 .612 1.414l.688.191a2 2 0 0 1 0 3.85l-.688.191a1 1 0 0 0-.612 1.414l.302.643a2 2 0 0 1-2.722 2.722l-.643-.302a1 1 0 0 0-1.414.612l-.191.688a2 2 0 0 1-3.85 0l-.191-.688a1 1 0 0 0-1.414-.612l-.643.302a2 2 0 0 1-2.722-2.722l.302-.643a1 1 0 0 0-.612-1.414l-.688-.191a2 2 0 0 1 0-3.85l.688-.191a1 1 0 0 0 .612-1.414l-.302-.643a2 2 0 0 1 2.722-2.722l.643.302a1 1 0 0 0 1.414-.612l.191-.688zM12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"/>
+  </svg>
+</button>
 
 <script>
 const TPC          = '30009902';
@@ -406,12 +487,44 @@ async function fetchWeather() {
   }
 }
 
+let manualOpacity = 0;
+
+function updateOverlay() {
+  const overlay = document.getElementById('overlay');
+  overlay.style.background = `rgba(0,0,0,${manualOpacity})`;
+  const slider = document.getElementById('overlay-slider');
+  if (slider) {
+    slider.value = Math.round(manualOpacity * 100);
+    document.getElementById('overlay-value').textContent = Math.round(manualOpacity * 100) + '%';
+  }
+}
+
+// Settings panel
+document.getElementById('settings-btn').addEventListener('click', (e) => {
+  e.stopPropagation();
+  document.getElementById('settings-panel').classList.toggle('open');
+});
+
+document.addEventListener('click', () => {
+  document.getElementById('settings-panel').classList.remove('open');
+});
+
+document.getElementById('settings-panel').addEventListener('click', e => e.stopPropagation());
+
+document.getElementById('overlay-slider').addEventListener('input', (e) => {
+  manualOpacity = e.target.value / 100;
+  document.getElementById('overlay-value').textContent = e.target.value + '%';
+  updateOverlay();
+});
+
 tickClock();
 setInterval(tickClock, 1000);
 fetchFerries();
 setInterval(fetchFerries, FERRY_REFRESH);
 fetchWeather();
 setInterval(fetchWeather, WEATHER_REFRESH);
+setInterval(updateOverlay, 60_000);
+updateOverlay();
 
 // Nudibranch squirm engine
 (function() {
@@ -434,12 +547,17 @@ setInterval(fetchWeather, WEATHER_REFRESH);
   }
 
   function startSwim() {
-    posX = (15 + Math.random() * 65) / 100 * window.innerWidth;
-    posY = -H - 20;
+    // Start from a random point along the top or left edge
+    const startLeft = Math.random() < 0.6;
+    if (startLeft) {
+      posX = -80;
+      posY = Math.random() * window.innerHeight * 0.4;
+    } else {
+      posX = Math.random() * window.innerWidth * 0.5;
+      posY = -H - 20;
+    }
     duration = (22 + Math.random() * 10) * 1000;
     startTime = performance.now();
-    canvas.style.left = (posX - canvas.width / 2) + 'px';
-    canvas.style.top = posY + 'px';
     canvas.style.opacity = '0';
     active = true;
     setTimeout(() => { canvas.style.opacity = '0.88'; }, 50);
@@ -452,7 +570,7 @@ setInterval(fetchWeather, WEATHER_REFRESH);
     const elapsed = now - startTime;
     const progress = elapsed / duration;
 
-    if (progress >= 1) {
+    if (posY > window.innerHeight + H || posX > window.innerWidth + W) {
       canvas.style.opacity = '0';
       active = false;
       scheduleNext();
@@ -464,12 +582,13 @@ setInterval(fetchWeather, WEATHER_REFRESH);
       canvas.style.opacity = String(1 - (progress - 0.88) / 0.12);
     }
 
-    // Vertical travel
+    // Diagonal travel — 4 o'clock heading (more down, less right)
     const totalTravel = window.innerHeight + H + 40;
-    posY = -H - 20 + progress * totalTravel;
+    posY = posY + (totalTravel / duration) * 16;
+    posX = posX + (totalTravel / duration) * 4;
 
-    // Horizontal drift — slow sine wave
-    const driftX = Math.sin(elapsed / 3200) * 18;
+    // Gentle lateral drift over the diagonal path
+    const driftX = Math.sin(elapsed / 3200) * 10;
     canvas.style.left = (posX - canvas.width / 2 + driftX) + 'px';
     canvas.style.top = posY + 'px';
 
