@@ -393,7 +393,7 @@
   <div class="ferry-card">
     <div class="fc-header">
       <div class="fc-badge f7-badge">F7</div>
-      <div class="fc-dest">Pontsteiger</div>
+      <div class="fc-dest"><span id="from-f7">NDSM</span><span class="fc-arrow" data-id="f7">→</span><span id="to-f7">Pontsteiger</span></div>
     </div>
     <div class="fc-main">
       <div class="fc-left">
@@ -430,8 +430,9 @@
 </button>
 
 <script>
-const TPC_NDSM     = '30009902';
-const TPC_CENTRAAL = '30009903';
+const TPC_NDSM       = '30009902';
+const TPC_CENTRAAL   = '30009903';
+const TPC_PONTSTEIGER = '30009900';
 const WORKER       = 'https://hellyhome-proxy.thatharmansinghworkers.workers.dev';
 const WEATHER_API  = 'https://api.open-meteo.com/v1/forecast?latitude=52.4009&longitude=4.8917&current=temperature_2m,weather_code&timezone=Europe%2FAmsterdam';
 const FERRY_REFRESH   = 30_000;
@@ -499,12 +500,12 @@ function tickClock() {
     DAYS[now.getDay()] + ' · ' + now.getDate() + ' ' + MONTHS[now.getMonth()];
 }
 
-const state    = { f4: [], f7: [], f4r: [] };
-const reversed = { f4: false };
+const state    = { f4: [], f7: [], f4r: [], f7r: [] };
+const reversed = { f4: false, f7: false };
 let ferryTick  = null;
 
 function renderFerry(id) {
-  const src  = (id === 'f4' && reversed.f4) ? state.f4r : state[id];
+  const src  = reversed[id] ? state[id + 'r'] : state[id];
   const deps = src.filter(d => secsUntil(d) > -10);
   const cdEl = document.getElementById('countdown-' + id);
   const afEl = document.getElementById('after-' + id);
@@ -519,12 +520,13 @@ function renderFerry(id) {
 
 async function fetchFerries() {
   try {
-    const [res1, res2] = await Promise.all([
-      fetch(WORKER + '?tpc=' + TPC_NDSM,     { cache: 'no-store' }),
-      fetch(WORKER + '?tpc=' + TPC_CENTRAAL, { cache: 'no-store' }),
+    const [res1, res2, res3] = await Promise.all([
+      fetch(WORKER + '?tpc=' + TPC_NDSM,        { cache: 'no-store' }),
+      fetch(WORKER + '?tpc=' + TPC_CENTRAAL,    { cache: 'no-store' }),
+      fetch(WORKER + '?tpc=' + TPC_PONTSTEIGER, { cache: 'no-store' }),
     ]);
-    if (!res1.ok || !res2.ok) throw new Error('HTTP error');
-    const [data1, data2] = await Promise.all([res1.json(), res2.json()]);
+    if (!res1.ok || !res2.ok || !res3.ok) throw new Error('HTTP error');
+    const [data1, data2, data3] = await Promise.all([res1.json(), res2.json(), res3.json()]);
 
     const passes1 = data1[TPC_NDSM]?.Passes;
     if (!passes1) throw new Error('No NDSM passes');
@@ -544,6 +546,13 @@ async function fetchFerries() {
     const passes2 = data2[TPC_CENTRAAL]?.Passes || {};
     state.f4r = Object.values(passes2)
       .filter(p => p.LinePublicNumber === 'F4' && p.JourneyStopType === 'FIRST' && p.TripStopStatus !== 'CANCEL')
+      .map(p => parseTime(p.ExpectedDepartureTime || p.TargetDepartureTime))
+      .filter(t => t && secsUntil(t) > -10)
+      .sort((a, b) => a - b);
+
+    const passes3 = data3[TPC_PONTSTEIGER]?.Passes || {};
+    state.f7r = Object.values(passes3)
+      .filter(p => p.LinePublicNumber === 'F7' && p.JourneyStopType === 'FIRST' && p.TripStopStatus !== 'CANCEL')
       .map(p => parseTime(p.ExpectedDepartureTime || p.TargetDepartureTime))
       .filter(t => t && secsUntil(t) > -10)
       .sort((a, b) => a - b);
@@ -598,11 +607,15 @@ document.addEventListener('click', () => {
 
 document.getElementById('settings-panel').addEventListener('click', e => e.stopPropagation());
 
-document.querySelector('.fc-arrow[data-id="f4"]').addEventListener('click', () => {
-  reversed.f4 = !reversed.f4;
-  document.getElementById('from-f4').textContent = reversed.f4 ? 'Centraal Station' : 'NDSM';
-  document.getElementById('to-f4').textContent   = reversed.f4 ? 'NDSM' : 'Centraal Station';
-  renderFerry('f4');
+const DEST = { f4: 'Centraal Station', f7: 'Pontsteiger' };
+document.querySelectorAll('.fc-arrow').forEach(arrow => {
+  arrow.addEventListener('click', () => {
+    const id = arrow.dataset.id;
+    reversed[id] = !reversed[id];
+    document.getElementById('from-' + id).textContent = reversed[id] ? DEST[id] : 'NDSM';
+    document.getElementById('to-' + id).textContent   = reversed[id] ? 'NDSM'   : DEST[id];
+    renderFerry(id);
+  });
 });
 
 document.getElementById('overlay-slider').addEventListener('input', (e) => {
