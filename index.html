@@ -140,10 +140,6 @@
   .f7-badge { background: #e8960a; }
 
   .fc-dest {
-    display: grid;
-    grid-template-columns: 1fr auto 1fr;
-    align-items: center;
-    flex: 1;
     font-size: clamp(10px, 0.9vw, 14px);
     color: rgba(255,255,255,0.9);
     font-weight: 400;
@@ -381,7 +377,7 @@
   <div class="ferry-card">
     <div class="fc-header">
       <div class="fc-badge f4-badge">F4</div>
-      <div class="fc-dest"><span id="from-f4">NDSM</span><span class="fc-arrow" data-id="f4">→</span><span id="to-f4">Centraal Station</span></div>
+      <div class="fc-dest"><span class="fc-arrow" data-id="f4">→</span><span id="to-f4">Centraal Station</span></div>
     </div>
     <div class="fc-main">
       <div class="fc-left">
@@ -397,7 +393,7 @@
   <div class="ferry-card">
     <div class="fc-header">
       <div class="fc-badge f7-badge">F7</div>
-      <div class="fc-dest"><span id="from-f7">NDSM</span><span class="fc-arrow" data-id="f7">→</span><span id="to-f7">Pontsteiger</span></div>
+      <div class="fc-dest"><span class="fc-arrow" data-id="f7">→</span><span id="to-f7">Pontsteiger</span></div>
     </div>
     <div class="fc-main">
       <div class="fc-left">
@@ -616,8 +612,7 @@ document.querySelectorAll('.fc-arrow').forEach(arrow => {
   arrow.addEventListener('click', () => {
     const id = arrow.dataset.id;
     reversed[id] = !reversed[id];
-    document.getElementById('from-' + id).textContent = reversed[id] ? DEST[id] : 'NDSM';
-    document.getElementById('to-' + id).textContent   = reversed[id] ? 'NDSM'   : DEST[id];
+    document.getElementById('to-' + id).textContent = reversed[id] ? 'NDSM' : DEST[id];
     renderFerry(id);
   });
 });
