@@ -642,12 +642,12 @@ updateOverlay();
 
   function startSwim() {
     // Start from a random point along the top or left edge
-    const startLeft = Math.random() < 0.6;
+    const startLeft = Math.random() < 0.35;
     if (startLeft) {
       posX = -80;
       posY = Math.random() * window.innerHeight * 0.4;
     } else {
-      posX = Math.random() * window.innerWidth * 0.5;
+      posX = Math.random() * window.innerWidth;
       posY = -H - 20;
     }
     duration = (22 + Math.random() * 10) * 1000;
