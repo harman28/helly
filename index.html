@@ -264,6 +264,42 @@
     transition: opacity 1.2s ease;
   }
 
+  /* ── Molly info card ─────────────────────────────────────── */
+  #molly-card {
+    position: fixed;
+    z-index: 5;
+    background: #1a1a1a;
+    border: 0.5px solid rgba(255,255,255,0.1);
+    border-radius: 10px;
+    padding: clamp(8px, 1.2vh, 12px) clamp(10px, 1.2vw, 16px);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    white-space: nowrap;
+  }
+
+  #molly-card.visible { opacity: 1; }
+
+  #molly-card .mc-name {
+    font-size: clamp(0.7rem, 1vw, 0.95rem);
+    font-weight: 700;
+    color: #ffffff;
+    letter-spacing: 0.02em;
+  }
+
+  #molly-card .mc-sci {
+    font-size: clamp(0.6rem, 0.85vw, 0.8rem);
+    font-style: italic;
+    color: rgba(255,255,255,0.65);
+    margin-top: 2px;
+  }
+
+  #molly-card .mc-desc {
+    font-size: clamp(0.6rem, 0.85vw, 0.8rem);
+    color: rgba(255,255,255,0.65);
+    margin-top: 2px;
+  }
+
   /* ── Settings ─────────────────────────────────────────────── */
   #settings-btn {
     position: fixed;
@@ -338,6 +374,12 @@
 <div id="overlay"></div>
 
 <canvas id="nudibranch-canvas"></canvas>
+
+<div id="molly-card">
+  <div class="mc-name">Molly · Nudibranch</div>
+  <div class="mc-sci">Chromodoris willani</div>
+  <div class="mc-desc">Beloved household member</div>
+</div>
 
 <div id="ui">
 
@@ -640,6 +682,7 @@ updateOverlay();
     duration = (22 + Math.random() * 10) * 1000;
     startTime = performance.now();
     canvas.style.opacity = '0';
+    canvas.style.pointerEvents = 'auto';
     active = true;
     setTimeout(() => { canvas.style.opacity = '0.88'; }, 50);
     if (rafId) cancelAnimationFrame(rafId);
@@ -653,7 +696,9 @@ updateOverlay();
 
     if (posY > window.innerHeight + H || posX > window.innerWidth + W) {
       canvas.style.opacity = '0';
+      canvas.style.pointerEvents = 'none';
       active = false;
+      hideCard();
       scheduleNext();
       return;
     }
@@ -696,9 +741,39 @@ updateOverlay();
   }
 
   img.onload = function() {
-    // First appearance after 15-35 seconds
     setTimeout(startSwim, (5 + Math.random() * 5) * 1000);
   };
+
+  const mollyCard = document.getElementById('molly-card');
+
+  function showCard() {
+    if (!active) return;
+    const rect = canvas.getBoundingClientRect();
+    let x = rect.right + 10;
+    let y = rect.top;
+    if (x + 220 > window.innerWidth)  x = rect.left - 220;
+    if (y + 80  > window.innerHeight) y = window.innerHeight - 90;
+    mollyCard.style.left = x + 'px';
+    mollyCard.style.top  = y + 'px';
+    mollyCard.classList.add('visible');
+  }
+
+  function hideCard() { mollyCard.classList.remove('visible'); }
+
+  // Desktop hover
+  canvas.addEventListener('mouseenter', showCard);
+  canvas.addEventListener('mouseleave', hideCard);
+
+  // Mobile tap toggle
+  canvas.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    mollyCard.classList.contains('visible') ? hideCard() : showCard();
+  }, { passive: false });
+
+  // Tap elsewhere on mobile closes the card
+  document.addEventListener('touchstart', (e) => {
+    if (e.target !== canvas) hideCard();
+  });
 })();
 </script>
 </body>
