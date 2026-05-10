@@ -94,23 +94,6 @@
     text-shadow: 0 1px 4px rgba(0,0,0,1), 0 2px 12px rgba(0,0,0,1), 0 4px 24px rgba(0,0,0,0.9);
   }
 
-  #world-clocks {
-    display: grid;
-    grid-template-columns: auto auto;
-    column-gap: 1em;
-    row-gap: 0.5vh;
-    margin-top: 2vh;
-    width: fit-content;
-    font-size: clamp(0.6rem, 0.9vw, 0.85rem);
-    color: rgba(255,255,255,1);
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    font-weight: 600;
-    font-variant-numeric: tabular-nums;
-    text-shadow: 0 1px 4px rgba(0,0,0,1), 0 2px 12px rgba(0,0,0,1), 0 4px 24px rgba(0,0,0,0.9);
-  }
-
-  .world-clock { display: contents; }
 
   /* ── Ferries ─────────────────────────────────────────────── */
   #ferries {
@@ -387,11 +370,6 @@
   <div id="helly">Helly</div>
   <div id="clock">--:--</div>
   <div id="date">—</div>
-  <div id="world-clocks">
-    <div class="world-clock"><span class="wc-city">New Delhi</span><span id="clock-delhi">—</span></div>
-    <div class="world-clock"><span class="wc-city">Dallas</span><span id="clock-dallas">—</span></div>
-    <div class="world-clock"><span class="wc-city">San Francisco</span><span id="clock-sf">—</span></div>
-  </div>
 </div>
 
 <div id="ferries">
@@ -518,14 +496,6 @@ function tickClock() {
     pad2(now.getHours()) + ':' + pad2(now.getMinutes());
   document.getElementById('date').textContent =
     DAYS[now.getDay()] + ' · ' + now.getDate() + ' ' + MONTHS[now.getMonth()];
-  [
-    { id: 'delhi',  label: 'New Delhi',    tz: 'Asia/Kolkata' },
-    { id: 'dallas', label: 'Dallas',       tz: 'America/Chicago' },
-    { id: 'sf',     label: 'San Francisco', tz: 'America/Los_Angeles' },
-  ].forEach(({ id, label, tz }) => {
-    const t = now.toLocaleTimeString('en-GB', { timeZone: tz, hour: '2-digit', minute: '2-digit', hour12: false });
-    document.getElementById('clock-' + id).textContent = t;
-  });
 }
 
 const state    = { f4: [], f7: [], f4r: [] };
