@@ -84,6 +84,16 @@
     letter-spacing: -0.04em;
     line-height: 1;
     text-shadow: 0 1px 8px rgba(0,0,0,0.8);
+    font-variant-numeric: tabular-nums;
+  }
+
+  #clock-ampm {
+    font-size: 0.28em;
+    font-weight: 400;
+    letter-spacing: 0.05em;
+    color: #ffffff;
+    vertical-align: baseline;
+    margin-left: 0.2em;
   }
 
   #date {
@@ -240,6 +250,7 @@
     font-weight: 400;
   }
 
+
   #nudibranch-canvas {
     position: fixed;
     z-index: 4;
@@ -369,7 +380,7 @@
 
 <div id="clock-block">
   <div id="helly">Helly</div>
-  <div id="clock">--:--</div>
+  <div id="clock">--:--<span id="clock-ampm"></span></div>
   <div id="date">—</div>
 </div>
 
@@ -461,7 +472,16 @@ function fmtCountdown(secs) {
   return m + ':' + pad2(s);
 }
 
-function fmtClock(t) { return pad2(t.getHours()) + ':' + pad2(t.getMinutes()); }
+function fmt12(t) {
+  const h = t.getHours();
+  const hour = h % 12 || 12;
+  return { time: hour + ':' + pad2(t.getMinutes()), suffix: h < 12 ? 'am' : 'pm' };
+}
+
+function fmtClock(t) {
+  const { time, suffix } = fmt12(t);
+  return time + ' ' + suffix;
+}
 
 function weatherEmoji(code) {
   if (code === 0)  return '☀';  // ☀ clear
@@ -494,8 +514,10 @@ const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov
 
 function tickClock() {
   const now = new Date();
-  document.getElementById('clock').textContent =
-    pad2(now.getHours()) + ':' + pad2(now.getMinutes());
+  const { time, suffix } = fmt12(now);
+  const clockEl = document.getElementById('clock');
+  clockEl.childNodes[0].textContent = time;
+  document.getElementById('clock-ampm').textContent = suffix;
   document.getElementById('date').textContent =
     DAYS[now.getDay()] + ' · ' + now.getDate() + ' ' + MONTHS[now.getMonth()];
 }
