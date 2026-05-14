@@ -683,6 +683,31 @@ setInterval(fetchWeather, WEATHER_REFRESH);
 setInterval(updateOverlay, 60_000);
 updateOverlay();
 
+// ── Global mouse tracking + webcam parallax ──────────────────
+let globalMouseX = window.innerWidth / 2;
+let globalMouseY = window.innerHeight / 2;
+let parallaxX = 0, parallaxY = 0;
+let targetParallaxX = 0, targetParallaxY = 0;
+
+document.addEventListener('mousemove', (e) => {
+  globalMouseX = e.clientX;
+  globalMouseY = e.clientY;
+  const nx = (e.clientX / window.innerWidth  - 0.5) * 2;
+  const ny = (e.clientY / window.innerHeight - 0.5) * 2;
+  targetParallaxX = nx * -0.7;
+  targetParallaxY = ny * -0.7;
+});
+
+(function parallaxLoop() {
+  parallaxX += (targetParallaxX - parallaxX) * 0.04;
+  parallaxY += (targetParallaxY - parallaxY) * 0.04;
+  const iframe = document.querySelector('#webcam iframe');
+  if (iframe) {
+    iframe.style.transform = `translate(calc(-50% + ${parallaxX.toFixed(3)}vw), calc(-50% + ${parallaxY.toFixed(3)}vh))`;
+  }
+  requestAnimationFrame(parallaxLoop);
+})();
+
 // Nudibranch squirm engine
 (function() {
   const canvas = document.getElementById('nudibranch-canvas');
@@ -697,6 +722,7 @@ updateOverlay();
   let active = false;
   let posX, posY, startTime, duration;
   let rafId = null;
+  let deflectVX = 0, deflectVY = 0;
 
   function scheduleNext() {
     const wait = (40 + Math.random() * 70) * 1000;
@@ -746,6 +772,20 @@ updateOverlay();
     const totalTravel = window.innerHeight + H + 40;
     posY = posY + (totalTravel / duration) * 16;
     posX = posX + (totalTravel / duration) * 4;
+
+    // Cursor reaction — abrupt direction change when cursor gets close
+    const mollyCx = posX, mollyCy = posY + H / 2;
+    const cdx = mollyCx - globalMouseX, cdy = mollyCy - globalMouseY;
+    const dist = Math.sqrt(cdx * cdx + cdy * cdy);
+    if (dist < 160 && dist > 0) {
+      const push = (1 - dist / 160) * 7;
+      deflectVX = (cdx / dist) * push;
+      deflectVY = (cdy / dist) * push;
+    }
+    posX += deflectVX;
+    posY += deflectVY;
+    deflectVX *= 0.88;
+    deflectVY *= 0.88;
 
     // Gentle lateral drift over the diagonal path
     const driftX = Math.sin(elapsed / 3200) * 10;
