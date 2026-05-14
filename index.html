@@ -859,6 +859,33 @@ document.addEventListener('mousemove', (e) => {
   // Secret: click "Helly" to call Molly back on screen
   document.getElementById('helly').addEventListener('click', bringOnScreen);
 })();
+
+// Touch: update global mouse position for Molly deflection + pull-to-refresh
+(function() {
+  let startY = 0, startX = 0;
+  let clearTouchTimer = null;
+
+  document.addEventListener('touchstart', (e) => {
+    startY = e.touches[0].clientY;
+    startX = e.touches[0].clientX;
+    globalMouseX = startX;
+    globalMouseY = startY;
+    clearTimeout(clearTouchTimer);
+  }, { passive: true });
+
+  document.addEventListener('touchmove', (e) => {
+    globalMouseX = e.touches[0].clientX;
+    globalMouseY = e.touches[0].clientY;
+  }, { passive: true });
+
+  document.addEventListener('touchend', (e) => {
+    const dy = e.changedTouches[0].clientY - startY;
+    const dx = Math.abs(e.changedTouches[0].clientX - startX);
+    if (dy > 90 && dx < 60 && startY < 140) location.reload();
+    // Move cursor off screen after a short kick so deflection fades naturally
+    clearTouchTimer = setTimeout(() => { globalMouseX = -999; globalMouseY = -999; }, 300);
+  }, { passive: true });
+})();
 </script>
 </body>
 </html>
