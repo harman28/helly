@@ -380,7 +380,7 @@
 
 <div id="webcam">
   <iframe
-    src="https://www.youtube-nocookie.com/embed/9Pm6Ji6tm7s?autoplay=1&mute=1&controls=0&loop=1&playlist=9Pm6Ji6tm7s&modestbranding=1&showinfo=0&rel=0"
+    src="https://www.youtube-nocookie.com/embed/9Pm6Ji6tm7s?autoplay=1&mute=1&controls=0&loop=1&playlist=9Pm6Ji6tm7s&modestbranding=1&showinfo=0&rel=0&origin=https://hellyhome.nl"
     allow="autoplay; encrypted-media"
     allowfullscreen>
   </iframe>
@@ -719,62 +719,85 @@ document.addEventListener('mousemove', (e) => {
   canvas.width = W + 20;
   canvas.height = H + 20;
 
-  let active = false;
-  let posX, posY, startTime, duration;
-  let rafId = null;
+  // Molly is always alive — continuous velocity, never truly stops
+  const BASE_SPEED = 0.72; // px/frame at ~60fps
+  let posX = -300, posY = -300;
+  let velX = BASE_SPEED * 0.243; // default 4 o'clock heading
+  let velY = BASE_SPEED * 0.970;
   let deflectVX = 0, deflectVY = 0;
+  let squirmT = 0;
+  let wasOnScreen = false;
 
-  function scheduleNext() {
-    const wait = (40 + Math.random() * 70) * 1000;
-    setTimeout(startSwim, wait);
+  function isOnScreen() {
+    return posX > -100 && posX < window.innerWidth + 100 &&
+           posY > -80  && posY < window.innerHeight + 80;
   }
 
-  function startSwim() {
-    // Start from a random point along the top or left edge
-    const startLeft = Math.random() < 0.35;
-    if (startLeft) {
-      posX = -80;
-      posY = Math.random() * window.innerHeight * 0.4;
+  function bringOnScreen() {
+    const cx = window.innerWidth / 2, cy = window.innerHeight / 2;
+    const side = Math.floor(Math.random() * 4);
+    if (side === 0) {
+      posX = -80; posY = Math.random() * window.innerHeight * 0.6 + window.innerHeight * 0.2;
+    } else if (side === 1) {
+      posX = Math.random() * window.innerWidth * 0.6 + window.innerWidth * 0.2; posY = -H - 20;
+    } else if (side === 2) {
+      posX = window.innerWidth + 80; posY = Math.random() * window.innerHeight * 0.6 + window.innerHeight * 0.2;
     } else {
-      posX = Math.random() * window.innerWidth;
-      posY = -H - 20;
+      posX = Math.random() * window.innerWidth * 0.6 + window.innerWidth * 0.2; posY = window.innerHeight + 20;
     }
-    duration = (22 + Math.random() * 10) * 1000;
-    startTime = performance.now();
-    canvas.style.opacity = '0';
-    canvas.style.pointerEvents = 'auto';
-    active = true;
-    setTimeout(() => { canvas.style.opacity = '0.88'; }, 50);
-    if (rafId) cancelAnimationFrame(rafId);
-    rafId = requestAnimationFrame(tick);
+    const dx = cx - posX, dy = cy - posY;
+    const d = Math.sqrt(dx * dx + dy * dy);
+    velX = (dx / d) * BASE_SPEED;
+    velY = (dy / d) * BASE_SPEED;
+    deflectVX = 0;
+    deflectVY = 0;
   }
 
-  function tick(now) {
-    if (!active) return;
-    const elapsed = now - startTime;
-    const progress = elapsed / duration;
+  // Info card
+  const mollyCard = document.getElementById('molly-card');
+  let cardActive = false, cardTimer = null, cardShownThisCrossing = false;
 
-    if (posY > window.innerHeight + H || posX > window.innerWidth + W) {
-      canvas.style.opacity = '0';
-      canvas.style.pointerEvents = 'none';
-      active = false;
-      hideCard();
-      scheduleNext();
-      return;
-    }
+  function placeCard() {
+    const rect = canvas.getBoundingClientRect();
+    let x = rect.right + 10, y = rect.top;
+    if (x + 220 > window.innerWidth)  x = rect.left - 220;
+    if (y + 80  > window.innerHeight) y = window.innerHeight - 90;
+    mollyCard.style.left = x + 'px';
+    mollyCard.style.top  = y + 'px';
+  }
 
-    // Fade out near end
-    if (progress > 0.88) {
-      canvas.style.opacity = String(1 - (progress - 0.88) / 0.12);
-    }
+  function showCard() {
+    if (cardActive || cardShownThisCrossing) return;
+    cardActive = true;
+    cardShownThisCrossing = true;
+    placeCard();
+    mollyCard.classList.add('visible');
+    cardTimer = setTimeout(() => {
+      mollyCard.classList.remove('visible');
+      cardActive = false;
+    }, 4000);
+  }
 
-    // Diagonal travel — 4 o'clock heading (more down, less right)
-    const totalTravel = window.innerHeight + H + 40;
-    posY = posY + (totalTravel / duration) * 16;
-    posX = posX + (totalTravel / duration) * 4;
+  function hideCard() {
+    clearTimeout(cardTimer);
+    mollyCard.classList.remove('visible');
+    cardActive = false;
+  }
 
-    // Cursor reaction — abrupt direction change when cursor gets close
-    const mollyCx = posX, mollyCy = posY + H / 2;
+  canvas.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    cardActive ? hideCard() : showCard();
+  }, { passive: false });
+
+  document.addEventListener('touchstart', (e) => {
+    if (e.target !== canvas) hideCard();
+  });
+
+  function tick() {
+    squirmT += 0.016;
+
+    // Cursor repulsion — abrupt direction change when cursor gets close
+    const mollyCx = posX + W / 2, mollyCy = posY + H / 2;
     const cdx = mollyCx - globalMouseX, cdy = mollyCy - globalMouseY;
     const dist = Math.sqrt(cdx * cdx + cdy * cdy);
     if (dist < 160 && dist > 0) {
@@ -782,72 +805,59 @@ document.addEventListener('mousemove', (e) => {
       deflectVX = (cdx / dist) * push;
       deflectVY = (cdy / dist) * push;
     }
-    posX += deflectVX;
-    posY += deflectVY;
+
+    posX += velX + deflectVX;
+    posY += velY + deflectVY;
     deflectVX *= 0.88;
     deflectVY *= 0.88;
 
-    // Gentle lateral drift over the diagonal path
-    const driftX = Math.sin(elapsed / 3200) * 10;
-    canvas.style.left = (posX - canvas.width / 2 + driftX) + 'px';
-    canvas.style.top = posY + 'px';
+    // Gentle return force when far off screen — she drifts back naturally
+    const FAR = 400;
+    if (posX < -FAR || posX > window.innerWidth + FAR || posY < -FAR || posY > window.innerHeight + FAR) {
+      const tx = window.innerWidth / 2, ty = window.innerHeight / 2;
+      const rx = tx - posX, ry = ty - posY;
+      const rd = Math.sqrt(rx * rx + ry * ry);
+      velX += (rx / rd) * 0.008;
+      velY += (ry / rd) * 0.008;
+      const sp = Math.sqrt(velX * velX + velY * velY);
+      if (sp > BASE_SPEED * 1.5) { velX = velX / sp * BASE_SPEED * 1.5; velY = velY / sp * BASE_SPEED * 1.5; }
+    }
 
-    // Draw squirming body using sine-wave column displacement
+    // Visibility — CSS transition handles the fade
+    const nowOnScreen = isOnScreen();
+    if (nowOnScreen !== wasOnScreen) {
+      wasOnScreen = nowOnScreen;
+      canvas.style.opacity = nowOnScreen ? '0.88' : '0';
+      canvas.style.pointerEvents = nowOnScreen ? 'auto' : 'none';
+      if (!nowOnScreen) { hideCard(); cardShownThisCrossing = false; }
+    }
+
+    canvas.style.left = (posX - canvas.width / 2) + 'px';
+    canvas.style.top  = posY + 'px';
+
+    // Card: show once per screen entry on proximity
+    if (nowOnScreen && dist < 160) showCard();
+    if (cardActive) placeCard();
+
+    // Draw squirm
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    const t = elapsed / 1000;
-    const slices = 40;
-    const sliceH = H / slices;
-    const offX = (canvas.width - W) / 2;
-
+    const slices = 40, sliceH = H / slices, offX = (canvas.width - W) / 2;
     for (let i = 0; i < slices; i++) {
       const srcY = (i / slices) * img.naturalHeight;
       const srcH = img.naturalHeight / slices;
-      const wave = Math.sin(t * 2.5 - i * 0.35) * (1.5 + i * 0.06);
-      const dx = offX + wave;
-      ctx.drawImage(
-        img,
-        0, srcY, img.naturalWidth, srcH,
-        dx, i * sliceH + 15, W, sliceH + 0.5
-      );
+      const wave = Math.sin(squirmT * 2.5 - i * 0.35) * (1.5 + i * 0.06);
+      ctx.drawImage(img, 0, srcY, img.naturalWidth, srcH, offX + wave, i * sliceH + 15, W, sliceH + 0.5);
     }
 
-    rafId = requestAnimationFrame(tick);
+    requestAnimationFrame(tick);
   }
 
   img.onload = function() {
-    setTimeout(startSwim, (5 + Math.random() * 5) * 1000);
+    setTimeout(() => { bringOnScreen(); requestAnimationFrame(tick); }, (5 + Math.random() * 5) * 1000);
   };
 
-  const mollyCard = document.getElementById('molly-card');
-
-  function showCard() {
-    if (!active) return;
-    const rect = canvas.getBoundingClientRect();
-    let x = rect.right + 10;
-    let y = rect.top;
-    if (x + 220 > window.innerWidth)  x = rect.left - 220;
-    if (y + 80  > window.innerHeight) y = window.innerHeight - 90;
-    mollyCard.style.left = x + 'px';
-    mollyCard.style.top  = y + 'px';
-    mollyCard.classList.add('visible');
-  }
-
-  function hideCard() { mollyCard.classList.remove('visible'); }
-
-  // Desktop hover
-  canvas.addEventListener('mouseenter', showCard);
-  canvas.addEventListener('mouseleave', hideCard);
-
-  // Mobile tap toggle
-  canvas.addEventListener('touchstart', (e) => {
-    e.preventDefault();
-    mollyCard.classList.contains('visible') ? hideCard() : showCard();
-  }, { passive: false });
-
-  // Tap elsewhere on mobile closes the card
-  document.addEventListener('touchstart', (e) => {
-    if (e.target !== canvas) hideCard();
-  });
+  // Secret: click "Helly" to call Molly back on screen
+  document.getElementById('helly').addEventListener('click', bringOnScreen);
 })();
 </script>
 </body>
