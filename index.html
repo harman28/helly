@@ -122,7 +122,8 @@
     border-radius: 12px;
     padding: clamp(12px, 1.8vh, 20px) clamp(14px, 1.8vw, 22px);
     border: 0.5px solid rgba(255,255,255,0.08);
-    width: clamp(200px, 22vw, 320px);
+    width: 100%;
+    max-width: clamp(200px, 22vw, 320px);
   }
 
   .fc-header {
@@ -219,6 +220,7 @@
     justify-self: start;
     display: flex;
     flex-direction: row;
+    flex-wrap: wrap;
     align-items: flex-end;
     gap: 1.5vw;
   }
@@ -261,7 +263,8 @@
   #spotify-player {
     border-radius: 12px;
     overflow: hidden;
-    width: clamp(280px, 28vw, 420px);
+    width: 100%;
+    max-width: clamp(200px, 28vw, 420px);
   }
 
   #spotify-player iframe {
