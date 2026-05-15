@@ -863,29 +863,48 @@ document.addEventListener('mousemove', (e) => {
   document.getElementById('helly').addEventListener('click', bringOnScreen);
 })();
 
-// Touch: update global mouse position for Molly deflection + pull-to-refresh
+// Touch: Molly deflection + pull-to-refresh + sticky webcam pan
 (function() {
-  let startY = 0, startX = 0;
+  let startX = 0, startY = 0;
   let clearTouchTimer = null;
+  let isPanning = false;
+  let panStartParallaxX = 0, panStartParallaxY = 0;
+  const PAN_THRESHOLD = 20;
+  const MAX_MOBILE_PAN = 2; // vw/vh
 
   document.addEventListener('touchstart', (e) => {
-    startY = e.touches[0].clientY;
     startX = e.touches[0].clientX;
+    startY = e.touches[0].clientY;
+    isPanning = false;
+    panStartParallaxX = targetParallaxX;
+    panStartParallaxY = targetParallaxY;
     globalMouseX = startX;
     globalMouseY = startY;
     clearTimeout(clearTouchTimer);
   }, { passive: true });
 
   document.addEventListener('touchmove', (e) => {
-    globalMouseX = e.touches[0].clientX;
-    globalMouseY = e.touches[0].clientY;
+    const tx = e.touches[0].clientX;
+    const ty = e.touches[0].clientY;
+    const dragX = tx - startX;
+    const dragY = ty - startY;
+    globalMouseX = tx;
+    globalMouseY = ty;
+    if (!isPanning && Math.sqrt(dragX * dragX + dragY * dragY) > PAN_THRESHOLD) {
+      isPanning = true;
+    }
+    if (isPanning) {
+      const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+      targetParallaxX = clamp(panStartParallaxX - (dragX / window.innerWidth)  * MAX_MOBILE_PAN * 2, -MAX_MOBILE_PAN, MAX_MOBILE_PAN);
+      targetParallaxY = clamp(panStartParallaxY - (dragY / window.innerHeight) * MAX_MOBILE_PAN * 2, -MAX_MOBILE_PAN, MAX_MOBILE_PAN);
+    }
   }, { passive: true });
 
   document.addEventListener('touchend', (e) => {
     const dy = e.changedTouches[0].clientY - startY;
     const dx = Math.abs(e.changedTouches[0].clientX - startX);
     if (dy > 90 && dx < 60 && startY < 140) location.reload();
-    // Move cursor off screen after a short kick so deflection fades naturally
+    // parallax target stays sticky — don't reset
     clearTouchTimer = setTimeout(() => { globalMouseX = -999; globalMouseY = -999; }, 300);
   }, { passive: true });
 })();
