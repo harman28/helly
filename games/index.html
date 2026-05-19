@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Helly · Games</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap');
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  width: 100%; height: 100%;
+  background: #0a0a12;
+  font-family: 'Inter', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+  color: #fff;
+}
+#bg {
+  position: fixed; inset: 0; pointer-events: none;
+  background:
+    radial-gradient(ellipse at 20% 60%, rgba(0,200,160,0.06) 0%, transparent 55%),
+    radial-gradient(ellipse at 80% 30%, rgba(100,80,255,0.05) 0%, transparent 55%);
+}
+#back {
+  position: fixed; top: 3vh; left: 3vw;
+  font-size: clamp(0.65rem, 0.9vw, 0.85rem);
+  color: rgba(255,255,255,0.3);
+  text-decoration: none;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-weight: 600;
+  transition: color 0.2s;
+}
+#back:hover { color: rgba(255,255,255,0.75); }
+#page {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(24px, 5vh, 56px);
+  position: relative;
+}
+.header { text-align: center; }
+.header h1 {
+  font-size: clamp(2.2rem, 5.5vw, 4.5rem);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+.header p {
+  margin-top: 0.6em;
+  font-size: clamp(0.65rem, 1vw, 0.9rem);
+  color: rgba(255,255,255,0.3);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+.grid {
+  display: flex;
+  gap: clamp(16px, 2.5vw, 40px);
+  align-items: stretch;
+}
+.card {
+  background: #0f0f1a;
+  border: 0.5px solid rgba(255,255,255,0.07);
+  border-radius: 20px;
+  padding: clamp(24px, 3.5vh, 44px) clamp(22px, 2.5vw, 38px);
+  width: clamp(220px, 26vw, 380px);
+  display: flex;
+  flex-direction: column;
+  gap: clamp(10px, 1.8vh, 18px);
+  cursor: pointer;
+  text-decoration: none;
+  color: inherit;
+  transition: transform 0.22s ease, border-color 0.22s, box-shadow 0.22s;
+  position: relative;
+  overflow: hidden;
+}
+.card::after {
+  content: '';
+  position: absolute; inset: 0;
+  border-radius: 20px;
+  opacity: 0;
+  transition: opacity 0.22s;
+}
+.slash-card::after { background: radial-gradient(ellipse at 35% 50%, rgba(0,255,200,0.07), transparent 65%); }
+.tennis-card::after { background: radial-gradient(ellipse at 65% 50%, rgba(255,200,0,0.07), transparent 65%); }
+.card:hover { transform: translateY(-5px); border-color: rgba(255,255,255,0.14); box-shadow: 0 24px 64px rgba(0,0,0,0.55); }
+.card:hover::after { opacity: 1; }
+.preview {
+  width: 100%;
+  height: clamp(70px, 10vh, 120px);
+  border-radius: 12px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.preview canvas { display: block; width: 100%; height: 100%; }
+.badge {
+  font-size: clamp(0.52rem, 0.65vw, 0.68rem);
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  padding: 3px 10px;
+  border-radius: 99px;
+  align-self: flex-start;
+}
+.slash-badge { color: #00ffc8; background: rgba(0,255,200,0.1); }
+.tennis-badge { color: #ffc840; background: rgba(255,200,64,0.1); }
+.card-title {
+  font-size: clamp(1.6rem, 3vw, 2.6rem);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+.slash-card .card-title { color: #00ffc8; }
+.tennis-card .card-title { color: #ffc840; }
+.card-desc {
+  font-size: clamp(0.68rem, 0.95vw, 0.88rem);
+  color: rgba(255,255,255,0.38);
+  line-height: 1.6;
+  flex: 1;
+}
+.play {
+  font-size: clamp(0.65rem, 0.85vw, 0.82rem);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  opacity: 0.4;
+  transition: opacity 0.2s;
+}
+.card:hover .play { opacity: 1; }
+.slash-card .play { color: #00ffc8; }
+.tennis-card .play { color: #ffc840; }
+</style>
+</head>
+<body>
+<div id="bg"></div>
+<a id="back" href="../">← Helly</a>
+<div id="page">
+  <div class="header">
+    <h1>GAMES</h1>
+    <p>Point your remote &middot; Click to play</p>
+  </div>
+  <div class="grid">
+    <a class="card slash-card" href="slash.html">
+      <div class="preview"><canvas id="pc-slash"></canvas></div>
+      <span class="badge slash-badge">Space</span>
+      <div class="card-title">SLASH</div>
+      <div class="card-desc">Wave the remote to cut through alien waves. Your movement trail is your weapon — move fast, slash hard.</div>
+      <div class="play">Play &rarr;</div>
+    </a>
+    <a class="card tennis-card" href="tennis.html">
+      <div class="preview"><canvas id="pc-tennis"></canvas></div>
+      <span class="badge tennis-badge">Sports</span>
+      <div class="card-title">TENNIS</div>
+      <div class="card-desc">Point the remote like a real racket. Position matters, but timing your swing puts speed and spin on every shot.</div>
+      <div class="play">Play &rarr;</div>
+    </a>
+  </div>
+</div>
+<script>
+// --- Slash preview ---
+(function() {
+  const c = document.getElementById('pc-slash');
+  let W, H;
+  function size() { W = c.width = c.offsetWidth; H = c.height = c.offsetHeight; }
+  size();
+  const ctx = c.getContext('2d');
+  let t = 0;
+  const enemies = [
+    { angle: 0.7, dist: 0.32, speed: 0.011, color: '#ff2244', sides: 5 },
+    { angle: 3.1, dist: 0.25, speed: -0.014, color: '#ff9900', sides: 3 },
+    { angle: 5.0, dist: 0.35, speed: 0.009, color: '#cc44ff', sides: 6 },
+  ];
+  function draw() {
+    ctx.fillStyle = '#060810';
+    ctx.fillRect(0, 0, W, H);
+    // stars
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    [0.1,0.8,0.3,0.65,0.5,0.2,0.9,0.4,0.75,0.15].forEach((x,i) => {
+      ctx.fillRect(x*W, [0.15,0.55,0.8,0.3,0.7,0.4,0.2,0.6,0.85,0.45][i]*H, 1, 1);
+    });
+    const cx = W*0.5, cy = H*0.5;
+    // trail
+    const tLen = 36;
+    for (let i = 0; i < tLen - 1; i++) {
+      const a1 = t - i/tLen * Math.PI * 2.2;
+      const a2 = t - (i+1)/tLen * Math.PI * 2.2;
+      const r = Math.min(W,H) * 0.28;
+      const x1 = cx + Math.cos(a1)*r, y1 = cy + Math.sin(a1*1.3)*H*0.22;
+      const x2 = cx + Math.cos(a2)*r, y2 = cy + Math.sin(a2*1.3)*H*0.22;
+      const f = 1 - i/tLen;
+      ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2);
+      ctx.lineWidth = f*5; ctx.strokeStyle = `hsla(180,100%,60%,${f*0.85})`; ctx.stroke();
+    }
+    // ship at head of trail
+    const ha = t, r2 = Math.min(W,H)*0.28;
+    const hx = cx + Math.cos(ha)*r2, hy = cy + Math.sin(ha*1.3)*H*0.22;
+    const va = Math.atan2(Math.sin(ha*1.3+0.1)*H*0.22 - Math.sin(ha*1.3)*H*0.22, Math.cos(ha+0.1)*r2 - Math.cos(ha)*r2) + Math.PI/2;
+    ctx.save(); ctx.translate(hx,hy); ctx.rotate(va);
+    ctx.shadowBlur = 12; ctx.shadowColor = '#00ffcc';
+    ctx.beginPath(); ctx.moveTo(0,-7); ctx.lineTo(4,6); ctx.lineTo(0,3); ctx.lineTo(-4,6); ctx.closePath();
+    ctx.fillStyle = '#00ffcc'; ctx.fill(); ctx.shadowBlur = 0;
+    ctx.restore();
+    // enemies
+    enemies.forEach(e => {
+      e.angle += e.speed;
+      const ex = cx + Math.cos(e.angle) * e.dist * W;
+      const ey = cy + Math.sin(e.angle * 0.9) * e.dist * H;
+      ctx.save(); ctx.translate(ex, ey);
+      ctx.beginPath();
+      for (let i = 0; i < e.sides; i++) {
+        const a = (i/e.sides)*Math.PI*2 - Math.PI/2;
+        ctx[i===0?'moveTo':'lineTo'](Math.cos(a)*7, Math.sin(a)*7);
+      }
+      ctx.closePath();
+      ctx.strokeStyle = e.color; ctx.lineWidth = 1.5;
+      ctx.shadowBlur = 6; ctx.shadowColor = e.color; ctx.stroke(); ctx.shadowBlur = 0;
+      ctx.restore();
+    });
+    t += 0.022;
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
+
+// --- Tennis preview ---
+(function() {
+  const c = document.getElementById('pc-tennis');
+  let W, H;
+  function size() { W = c.width = c.offsetWidth; H = c.height = c.offsetHeight; }
+  size();
+  const ctx = c.getContext('2d');
+  const ball = { x: 0, y: 0, vx: 2.4, vy: -1.8 };
+  let pY = 0, aiY = 0;
+  function init() { ball.x = W*0.7; ball.y = H*0.5; pY = H*0.4; aiY = H*0.4; }
+  init();
+  const FLOOR = () => H * 0.82;
+  const NET = () => W * 0.5;
+  const NET_H = () => H * 0.22;
+  function draw() {
+    const fl = FLOOR(), nx = NET(), nh = NET_H();
+    ctx.fillStyle = '#060810'; ctx.fillRect(0,0,W,H);
+    // court
+    ctx.fillStyle = '#0c2018';
+    ctx.fillRect(W*0.06, H*0.1, W*0.88, fl - H*0.1);
+    // lines
+    ctx.strokeStyle = 'rgba(255,255,255,0.2)'; ctx.lineWidth = 1;
+    ctx.strokeRect(W*0.06, H*0.1, W*0.88, fl - H*0.1);
+    ctx.beginPath(); ctx.moveTo(W*0.06,fl); ctx.lineTo(W*0.94,fl); ctx.stroke();
+    // net
+    ctx.strokeStyle = 'rgba(255,255,255,0.6)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(nx, fl); ctx.lineTo(nx, fl-nh); ctx.stroke();
+    // ball physics
+    ball.vy += 0.09;
+    ball.x += ball.vx; ball.y += ball.vy;
+    if (ball.y + 4 > fl) { ball.y = fl-4; ball.vy *= -0.72; }
+    if (ball.x < W*0.09) { ball.x = W*0.09; ball.vx = Math.abs(ball.vx) + 0.5; ball.vy += (Math.random()-0.5)*2; }
+    if (ball.x > W*0.91) { ball.x = W*0.91; ball.vx = -(Math.abs(ball.vx) + 0.5); ball.vy += (Math.random()-0.5)*2; }
+    if (ball.x > nx-4 && ball.x < nx+4 && ball.y + 4 > fl-nh) { ball.vx = -ball.vx*0.5; ball.vy *= 0.4; }
+    // AI & player follow ball
+    const speed = 3;
+    const halfRH = H * 0.12;
+    pY += Math.sign(ball.y - halfRH - pY) * Math.min(Math.abs(ball.y - halfRH - pY), speed);
+    aiY += Math.sign(ball.y - halfRH - aiY) * Math.min(Math.abs(ball.y - halfRH - aiY), speed * 0.7);
+    pY = Math.max(H*0.12, Math.min(fl - halfRH*2, pY));
+    aiY = Math.max(H*0.12, Math.min(fl - halfRH*2, aiY));
+    // shadow
+    const sdist = fl - ball.y;
+    const sR = Math.max(2, 4*(1 - sdist/(fl-H*0.1)*0.5));
+    ctx.globalAlpha = 0.35; ctx.fillStyle = '#000';
+    ctx.beginPath(); ctx.ellipse(ball.x, fl-1, sR, sR*0.4, 0, 0, Math.PI*2); ctx.fill(); ctx.globalAlpha = 1;
+    // ball
+    ctx.beginPath(); ctx.arc(ball.x, ball.y, 4, 0, Math.PI*2);
+    ctx.fillStyle = '#ffe040'; ctx.shadowBlur = 10; ctx.shadowColor = '#ffc800'; ctx.fill(); ctx.shadowBlur = 0;
+    // rackets
+    const rw = 4, rh = halfRH*2;
+    ctx.shadowBlur = 8; ctx.shadowColor = '#00ffcc';
+    ctx.fillStyle = '#00ffcc'; ctx.fillRect(W*0.88, pY, rw, rh);
+    ctx.shadowBlur = 8; ctx.shadowColor = '#ff6644';
+    ctx.fillStyle = '#ff6644'; ctx.fillRect(W*0.08, aiY, rw, rh);
+    ctx.shadowBlur = 0;
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
+</script>
+</body>
+</html>

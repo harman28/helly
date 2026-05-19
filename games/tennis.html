@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tennis · Helly Games</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #000; overflow: hidden; cursor: none; }
+canvas { display: block; }
+#back {
+  position: fixed; top: 20px; left: 20px; z-index: 100;
+  font-family: 'Inter', sans-serif; font-size: clamp(11px, 0.85vw, 14px);
+  font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase;
+  color: rgba(255,255,255,0.28); text-decoration: none;
+  background: rgba(255,255,255,0.04);
+  border: 0.5px solid rgba(255,255,255,0.09);
+  border-radius: 99px; padding: 8px 18px;
+  transition: all 0.2s;
+}
+#back:hover { color: rgba(255,255,255,0.7); background: rgba(255,255,255,0.08); }
+</style>
+</head>
+<body>
+<a id="back" href="index.html">&#8592; Games</a>
+<canvas id="c"></canvas>
+<script>
+const C = document.getElementById('c');
+const ctx = C.getContext('2d');
+let W, H;
+function resize() { C.width = W = window.innerWidth; C.height = H = window.innerHeight; }
+resize();
+window.addEventListener('resize', resize);
+
+// --- Responsive geometry (called fresh each frame) ---
+const G = {
+  floor:    () => H * 0.86,
+  ct:       () => H * 0.13,          // court top (below score area)
+  netH:     () => H * 0.21,          // net visual height
+  netTop:   () => G.floor() - G.netH(),
+  px:       () => W * 0.88,          // player racket x
+  ax:       () => W * 0.12,          // AI racket x
+  rw:       () => Math.max(12, W * 0.009),
+  rh:       () => Math.max(88, H * 0.115),
+  br:       () => Math.max(11, W * 0.008),
+  aiSpeed:  () => 5.2 + score.aGames * 0.25,
+};
+
+const GRAVITY   = 0.31;
+const PT_LABELS = ['0', '15', '30', '40'];
+
+// --- State ---
+let state = 'title';    // title|serve|rally|point|won
+let serving = 'player'; // 'player'|'ai'
+let lastHit  = 'player';
+let pointWin = null;
+let matchWin = null;
+let stateTimer = 0;
+let lastTs = 0;
+
+const ball   = { x:0, y:0, vx:0, vy:0 };
+const player = { y:0 };
+const ai     = { y:0 };
+const mouse  = { x:0, y:0 };
+let mouseVY = 0, prevMouseY = 0;
+let particles = [];
+const score = { pPts:0, aPts:0, pGames:0, aGames:0 };
+
+// --- Input ---
+document.addEventListener('mousemove', e => {
+  mouseVY = mouseVY * 0.5 + (e.clientY - prevMouseY) * 0.5;
+  prevMouseY = mouse.y;
+  mouse.x = e.clientX;
+  mouse.y = e.clientY;
+});
+
+document.addEventListener('click', () => {
+  if (state === 'title')           { startMatch(); return; }
+  if (state === 'serve')           { stateTimer = 0; }   // early serve
+  if (state === 'won')             { startMatch(); }
+});
+
+function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+
+// --- Game logic ---
+
+function startMatch() {
+  Object.assign(score, {pPts:0, aPts:0, pGames:0, aGames:0});
+  serving = 'player'; matchWin = null; particles = [];
+  mouseVY = 0; prevMouseY = mouse.y;
+  startServe();
+}
+
+function startServe() {
+  state = 'serve';
+  stateTimer = 1900;
+  const fl = G.floor(), rh = G.rh(), px = G.px(), ax = G.ax(), br = G.br(), rw = G.rw();
+  if (serving === 'player') {
+    ball.x = px - rw - br - 4; ball.y = fl - rh * 0.55;
+    ball.vx = 0; ball.vy = 0;
+    player.y = fl - rh * 0.55 - br;
+    ai.y = H * 0.5 - rh * 0.5;
+  } else {
+    ball.x = ax + rw + br + 4; ball.y = fl - rh * 0.55;
+    ball.vx = 0; ball.vy = 0;
+    ai.y = fl - rh * 0.55 - br;
+    player.y = H * 0.5 - rh * 0.5;
+  }
+}
+
+function doServe() {
+  const spd = 14;
+  if (serving === 'player') {
+    ball.vx = -spd; ball.vy = -17; lastHit = 'player';
+  } else {
+    ball.vx =  spd; ball.vy = -17; lastHit = 'ai';
+  }
+  state = 'rally';
+}
+
+function awardPoint(winner) {
+  if (state !== 'rally') return;
+  state = 'point';
+  stateTimer = 2000;
+  pointWin = winner;
+  if (winner === 'player') score.pPts++; else score.aPts++;
+
+  // Check game
+  const pp = score.pPts, ap = score.aPts;
+  let gWin = null;
+  if (pp >= 4 && ap >= 4) {
+    if (pp - ap >= 2) gWin = 'player';
+    else if (ap - pp >= 2) gWin = 'ai';
+  } else if (pp >= 4) gWin = 'player';
+  else if (ap >= 4) gWin = 'ai';
+
+  if (gWin) {
+    score.pPts = 0; score.aPts = 0;
+    if (gWin === 'player') score.pGames++; else score.aGames++;
+    serving = serving === 'player' ? 'ai' : 'player';
+    const pg = score.pGames, ag = score.aGames;
+    if (Math.max(pg, ag) >= 6 && Math.abs(pg - ag) >= 2) {
+      matchWin = pg > ag ? 'player' : 'ai';
+      state = 'won';
+    }
+  }
+}
+
+function burst(x, y, col, n) {
+  for (let i = 0; i < n; i++) {
+    const a = Math.random() * Math.PI * 2, s = 1.5 + Math.random() * 6;
+    particles.push({ x, y, vx: Math.cos(a)*s, vy: Math.sin(a)*s, life: 1, col, sz: 2 + Math.random()*3 });
+  }
+}
+
+function ptLabel(pts) {
+  if (pts <= 3) return PT_LABELS[pts];
+  return 'AD';
+}
+function scoreDisplay() {
+  const pp = score.pPts, ap = score.aPts;
+  if (pp >= 3 && ap >= 3) {
+    if (pp === ap) return ['40', '40'];
+    return pp > ap ? ['AD', '40'] : ['40', 'AD'];
+  }
+  return [PT_LABELS[Math.min(pp,3)], PT_LABELS[Math.min(ap,3)]];
+}
+
+// --- Update ---
+
+function update(dt) {
+  const s = dt / 1000;
+  const fl = G.floor(), ct = G.ct(), rh = G.rh(), br = G.br();
+  const nx = W * 0.5, ntop = G.netTop(), rw = G.rw();
+  const px = G.px(), ax = G.ax();
+
+  mouseVY *= 0.82;
+
+  // Player racket follows cursor Y
+  player.y = clamp(mouse.y - rh * 0.5, ct, fl - rh);
+
+  if (state === 'serve') {
+    stateTimer -= dt;
+    if (serving === 'player') {
+      ball.x = px - rw - br - 4;
+      ball.y = player.y + rh * 0.4;
+    } else {
+      ball.x = ax + rw + br + 4;
+      ball.y = ai.y + rh * 0.4;
+    }
+    if (stateTimer <= 0) doServe();
+  }
+
+  if (state === 'rally') {
+    ball.vy += GRAVITY;
+
+    const prevX = ball.x;
+    ball.x += ball.vx;
+    ball.y += ball.vy;
+
+    // Ceiling
+    if (ball.y - br < ct) { ball.y = ct + br; ball.vy = Math.abs(ball.vy) * 0.6; }
+
+    // Floor bounce
+    if (ball.y + br > fl) {
+      ball.y = fl - br;
+      ball.vy = -Math.abs(ball.vy) * 0.7;
+      ball.vx *= 0.975;
+      if (Math.abs(ball.vy) < 1.5) ball.vy = -1.5;
+    }
+
+    // Net
+    const crossedNet = (prevX < nx && ball.x >= nx) || (prevX > nx && ball.x <= nx);
+    if (crossedNet && ball.y + br > ntop) {
+      ball.x = prevX;
+      ball.vx = -ball.vx * 0.3;
+      ball.vy *= 0.25;
+      burst(nx, clamp(ball.y, ntop, fl), '#fff', 10);
+      awardPoint(lastHit === 'player' ? 'ai' : 'player');
+    }
+
+    // Player racket (ball moving rightward → toward player)
+    if (ball.vx > 0 &&
+        ball.x + br > px - rw && ball.x - br < px + rw &&
+        ball.y + br > player.y && ball.y - br < player.y + rh) {
+      lastHit = 'player';
+      const pos = (ball.y - (player.y + rh*0.5)) / (rh*0.5);   // -1..1
+      const swing = mouseVY;
+      const spd = Math.min(Math.abs(ball.vx) + 3.5, 22);
+      ball.vx = -(spd + Math.min(Math.abs(swing) * 0.12, 4.5));
+      ball.vy = pos * 7.5 + swing * 0.38;
+      ball.x = px - rw - br - 1;
+      mouseVY = 0;
+      burst(ball.x, ball.y, '#00ffcc', 20);
+    }
+
+    // AI racket (ball moving leftward → toward AI)
+    if (ball.vx < 0 &&
+        ball.x - br < ax + rw && ball.x + br > ax - rw &&
+        ball.y + br > ai.y && ball.y - br < ai.y + rh) {
+      lastHit = 'ai';
+      const pos = (ball.y - (ai.y + rh*0.5)) / (rh*0.5);
+      const spd = 10 + Math.random() * 5 + score.aGames * 0.4;
+      const target = player.y + rh * (0.15 + Math.random() * 0.7);
+      const aim = clamp((target - ball.y) * 0.09, -6, 6);
+      ball.vx = spd;
+      ball.vy = pos * 5 + aim + (Math.random() - 0.5) * 3;
+      ball.x = ax + rw + br + 1;
+      burst(ball.x, ball.y, '#ff8844', 14);
+    }
+
+    // Out past rackets
+    if (ball.x > W + 60) awardPoint('ai');
+    if (ball.x < -60)    awardPoint('player');
+  }
+
+  if (state === 'point') {
+    stateTimer -= dt;
+    if (stateTimer <= 0 && state === 'point') startServe();
+  }
+
+  // AI tracking (in rally: moves faster when ball in its half)
+  if (state === 'rally' || state === 'serve') {
+    const target = ball.y - rh * 0.5;
+    const spd = (ball.x < W * 0.45 ? G.aiSpeed() : G.aiSpeed() * 0.55);
+    const dy = target - ai.y;
+    ai.y += Math.sign(dy) * Math.min(Math.abs(dy), spd);
+    ai.y = clamp(ai.y, ct, fl - rh);
+  }
+
+  // Particles
+  particles.forEach(p => {
+    p.x += p.vx; p.y += p.vy;
+    p.vx *= 0.91; p.vy *= 0.91;
+    p.life -= s * 1.15;
+  });
+  particles = particles.filter(p => p.life > 0);
+}
+
+// --- Draw ---
+
+function drawCourt() {
+  const fl = G.floor(), ct = G.ct();
+  const lx = W * 0.06, rx = W * 0.94, cw = rx - lx;
+  const ch = fl - ct;
+  const nx = W * 0.5, ntop = G.netTop();
+
+  // Surface
+  ctx.fillStyle = '#0b2016';
+  ctx.fillRect(lx, ct, cw, ch);
+
+  // Court lines
+  ctx.strokeStyle = 'rgba(255,255,255,0.22)';
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(lx, ct, cw, ch);
+  // service line (at 55% from top)
+  const sly = ct + ch * 0.55;
+  ctx.beginPath(); ctx.moveTo(lx, sly); ctx.lineTo(nx, sly); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(nx, sly); ctx.lineTo(rx, sly); ctx.stroke();
+  // centre stub above net
+  ctx.beginPath(); ctx.moveTo(nx, sly); ctx.lineTo(nx, ct); ctx.stroke();
+  // baseline
+  ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+  ctx.lineWidth = 2.5;
+  ctx.beginPath(); ctx.moveTo(lx, fl); ctx.lineTo(rx, fl); ctx.stroke();
+
+  // Net
+  ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+  ctx.lineWidth = 2.5;
+  ctx.beginPath(); ctx.moveTo(nx, fl); ctx.lineTo(nx, ntop - 14); ctx.stroke();
+  // net horizontals
+  ctx.strokeStyle = 'rgba(255,255,255,0.22)';
+  ctx.lineWidth = 1;
+  const netHeight = fl - ntop;
+  for (let i = 0; i <= 5; i++) {
+    const ny = ntop + (netHeight / 5) * i;
+    ctx.beginPath(); ctx.moveTo(nx - 18, ny); ctx.lineTo(nx + 18, ny); ctx.stroke();
+  }
+  // post top cap
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(nx - 5, ntop - 18, 10, 9);
+}
+
+function loop(ts) {
+  const dt = Math.min(ts - lastTs, 50);
+  lastTs = ts;
+  if (state !== 'title') update(dt);
+
+  const fl = G.floor(), ct = G.ct(), rh = G.rh(), br = G.br(), rw = G.rw();
+  const px = G.px(), ax = G.ax(), nx = W * 0.5;
+
+  // Background
+  ctx.fillStyle = '#060810';
+  ctx.fillRect(0, 0, W, H);
+
+  drawCourt();
+
+  // Particles
+  particles.forEach(p => {
+    ctx.globalAlpha = p.life;
+    ctx.fillStyle = p.col;
+    ctx.shadowBlur = 6; ctx.shadowColor = p.col;
+    ctx.fillRect(p.x - p.sz/2, p.y - p.sz/2, p.sz, p.sz);
+    ctx.shadowBlur = 0;
+  });
+  ctx.globalAlpha = 1;
+
+  // Ball
+  if (state !== 'title') {
+    // Shadow on floor
+    const shadowDist = fl - ball.y;
+    const maxDist = fl - ct;
+    const shadowR = Math.max(3, br * 1.3 * Math.max(0.2, 1 - shadowDist / maxDist * 0.6));
+    ctx.globalAlpha = Math.max(0.05, 0.55 - shadowDist / maxDist * 0.45);
+    ctx.fillStyle = '#000';
+    ctx.beginPath(); ctx.ellipse(ball.x, fl - 2, shadowR, shadowR * 0.32, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = 1;
+
+    // Ball glow + sphere
+    const bg = ctx.createRadialGradient(ball.x - br*0.3, ball.y - br*0.35, 0, ball.x, ball.y, br);
+    bg.addColorStop(0, '#ffffe0'); bg.addColorStop(0.5, '#ffe040'); bg.addColorStop(1, '#e08000');
+    ctx.shadowBlur = 22; ctx.shadowColor = '#ffc800';
+    ctx.fillStyle = bg;
+    ctx.beginPath(); ctx.arc(ball.x, ball.y, br, 0, Math.PI * 2); ctx.fill();
+    ctx.shadowBlur = 0;
+  }
+
+  // AI racket
+  const aiGr = ctx.createLinearGradient(ax - rw, 0, ax + rw, 0);
+  aiGr.addColorStop(0, '#e03020'); aiGr.addColorStop(1, '#ff7755');
+  ctx.shadowBlur = 18; ctx.shadowColor = '#ff6644';
+  ctx.fillStyle = aiGr;
+  ctx.beginPath(); ctx.roundRect(ax - rw, ai.y, rw * 2, rh, rw); ctx.fill();
+  ctx.shadowBlur = 0;
+
+  // Player racket
+  const pGr = ctx.createLinearGradient(px - rw, 0, px + rw, 0);
+  pGr.addColorStop(0, '#00b890'); pGr.addColorStop(1, '#00ffcc');
+  ctx.shadowBlur = 22; ctx.shadowColor = '#00ffcc';
+  ctx.fillStyle = pGr;
+  ctx.beginPath(); ctx.roundRect(px - rw, player.y, rw * 2, rh, rw); ctx.fill();
+  ctx.shadowBlur = 0;
+
+  // Cursor aim line (while playing)
+  if (state === 'rally' || state === 'serve') {
+    ctx.globalAlpha = 0.22;
+    ctx.strokeStyle = '#00ffcc';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([5, 5]);
+    ctx.beginPath(); ctx.moveTo(px - rw * 3, mouse.y); ctx.lineTo(px + rw * 3, mouse.y); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.globalAlpha = 1;
+  }
+
+  drawHUD();
+
+  if (state === 'title')  drawTitle(ts);
+  if (state === 'serve')  drawServeHint();
+  if (state === 'point')  drawPointBanner();
+  if (state === 'won')    drawMatchEnd(ts);
+
+  requestAnimationFrame(loop);
+}
+
+function drawHUD() {
+  const fs = Math.max(18, Math.round(W * 0.022));
+  const hy = H * 0.065;
+
+  // Transparent header bar
+  ctx.fillStyle = 'rgba(4,4,14,0.55)';
+  ctx.fillRect(0, 0, W, H * 0.11);
+
+  const [pDisp, aDisp] = scoreDisplay();
+
+  // CPU
+  ctx.textAlign = 'right';
+  ctx.font = `400 ${Math.round(fs * 0.55)}px Inter, sans-serif`;
+  ctx.fillStyle = 'rgba(255,100,68,0.6)';
+  ctx.fillText('CPU', W * 0.5 - fs * 2.2, hy - fs * 0.3);
+
+  ctx.font = `800 ${Math.round(fs * 1.65)}px Inter, sans-serif`;
+  ctx.fillStyle = '#ff6644';
+  ctx.shadowBlur = 8; ctx.shadowColor = '#ff6644';
+  ctx.fillText(aDisp, W * 0.5 - fs * 0.3, hy + fs * 0.6);
+  ctx.shadowBlur = 0;
+
+  ctx.font = `600 ${Math.round(fs * 0.65)}px Inter, sans-serif`;
+  ctx.fillStyle = 'rgba(255,255,255,0.25)';
+  ctx.fillText(`${score.aGames} games`, W * 0.36, hy + fs * 0.6);
+
+  // Divider
+  ctx.textAlign = 'center';
+  ctx.font = `700 ${Math.round(fs * 0.9)}px Inter, sans-serif`;
+  ctx.fillStyle = 'rgba(255,255,255,0.18)';
+  ctx.fillText(':', W * 0.5, hy + fs * 0.6);
+
+  // YOU
+  ctx.textAlign = 'left';
+  ctx.font = `400 ${Math.round(fs * 0.55)}px Inter, sans-serif`;
+  ctx.fillStyle = 'rgba(0,255,200,0.6)';
+  ctx.fillText('YOU', W * 0.5 + fs * 2.2, hy - fs * 0.3);
+
+  ctx.font = `800 ${Math.round(fs * 1.65)}px Inter, sans-serif`;
+  ctx.fillStyle = '#00ffcc';
+  ctx.shadowBlur = 8; ctx.shadowColor = '#00ffcc';
+  ctx.fillText(pDisp, W * 0.5 + fs * 0.3, hy + fs * 0.6);
+  ctx.shadowBlur = 0;
+
+  ctx.font = `600 ${Math.round(fs * 0.65)}px Inter, sans-serif`;
+  ctx.fillStyle = 'rgba(255,255,255,0.25)';
+  ctx.fillText(`${score.pGames} games`, W * 0.64, hy + fs * 0.6);
+
+  // Serving dot
+  ctx.font = `500 ${Math.round(fs * 0.4)}px Inter, sans-serif`;
+  const sCol = serving === 'player' ? 'rgba(0,255,200,0.5)' : 'rgba(255,100,68,0.5)';
+  ctx.fillStyle = sCol;
+  if (serving === 'player') {
+    ctx.textAlign = 'left';
+    ctx.fillText('● serving', W * 0.65, H * 0.1);
+  } else {
+    ctx.textAlign = 'right';
+    ctx.fillText('serving ●', W * 0.35, H * 0.1);
+  }
+}
+
+function drawServeHint() {
+  const fs = Math.max(14, Math.round(W * 0.015));
+  const secs = Math.ceil(stateTimer / 1000);
+  ctx.textAlign = 'center';
+  ctx.font = `600 ${fs}px Inter, sans-serif`;
+  ctx.fillStyle = 'rgba(255,255,255,0.35)';
+  ctx.fillText(serving === 'player' ? 'GET READY — SERVING IN ' + secs : 'CPU SERVING IN ' + secs, W * 0.5, H * 0.93);
+  ctx.font = `400 ${Math.round(fs * 0.75)}px Inter, sans-serif`;
+  ctx.fillStyle = 'rgba(255,255,255,0.18)';
+  ctx.fillText('CLICK TO SERVE NOW', W * 0.5, H * 0.96);
+}
+
+function drawPointBanner() {
+  const won = pointWin === 'player';
+  const fs = Math.max(22, Math.round(W * 0.028));
+  ctx.fillStyle = 'rgba(0,0,0,0.35)';
+  ctx.fillRect(0, H * 0.43, W, H * 0.14);
+  ctx.textAlign = 'center';
+  ctx.font = `800 ${fs}px Inter, sans-serif`;
+  ctx.fillStyle = won ? '#00ffcc' : '#ff6644';
+  ctx.shadowBlur = 16; ctx.shadowColor = won ? '#00ffcc' : '#ff6644';
+  ctx.fillText(won ? 'YOUR POINT' : (pointWin === 'ai' ? 'CPU POINT' : 'NET'), W * 0.5, H * 0.5);
+  ctx.shadowBlur = 0;
+}
+
+function drawTitle(ts) {
+  const t = ts / 1000;
+  ctx.fillStyle = 'rgba(0,0,0,0.65)';
+  ctx.fillRect(0, 0, W, H);
+
+  const fs = Math.max(40, Math.round(W * 0.072));
+  ctx.textAlign = 'center';
+  ctx.font = `800 ${fs}px Inter, sans-serif`;
+  ctx.shadowBlur = 28 + 10 * Math.sin(t * 1.8); ctx.shadowColor = '#00ffcc';
+  ctx.fillStyle = '#00ffcc';
+  ctx.fillText('TENNIS', W * 0.5, H * 0.38);
+  ctx.shadowBlur = 0;
+
+  ctx.font = `${Math.round(fs * 0.27)}px Inter, sans-serif`;
+  ctx.fillStyle = `rgba(255,255,255,${0.38 + 0.28 * Math.sin(t * 2.4)})`;
+  ctx.fillText('MOVE REMOTE UP • DOWN • TIME YOUR SWING', W * 0.5, H * 0.49);
+
+  ctx.font = `${Math.round(fs * 0.22)}px Inter, sans-serif`;
+  ctx.fillStyle = 'rgba(255,255,255,0.22)';
+  ctx.fillText('CLICK TO START — FIRST TO 6 GAMES', W * 0.5, H * 0.59);
+}
+
+function drawMatchEnd(ts) {
+  const won = matchWin === 'player';
+  ctx.fillStyle = 'rgba(0,0,0,0.72)';
+  ctx.fillRect(0, 0, W, H);
+
+  const fs = Math.max(40, Math.round(W * 0.07));
+  ctx.textAlign = 'center';
+  ctx.font = `800 ${fs}px Inter, sans-serif`;
+  ctx.fillStyle = won ? '#00ffcc' : '#ff6644';
+  ctx.shadowBlur = 30; ctx.shadowColor = won ? '#00ffcc' : '#ff6644';
+  ctx.fillText(won ? 'YOU WIN!' : 'CPU WINS', W * 0.5, H * 0.38);
+  ctx.shadowBlur = 0;
+
+  ctx.font = `600 ${Math.round(fs * 0.45)}px Inter, sans-serif`;
+  ctx.fillStyle = 'rgba(255,255,255,0.45)';
+  ctx.fillText(`${score.pGames} – ${score.aGames}`, W * 0.5, H * 0.5);
+
+  ctx.font = `${Math.round(fs * 0.24)}px Inter, sans-serif`;
+  ctx.fillStyle = 'rgba(255,255,255,0.22)';
+  ctx.fillText('CLICK TO PLAY AGAIN', W * 0.5, H * 0.6);
+}
+
+// Boot
+resize();
+player.y = H * 0.5 - G.rh() * 0.5;
+ai.y     = H * 0.5 - G.rh() * 0.5;
+ball.x = W * 0.5; ball.y = H * 0.5;
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

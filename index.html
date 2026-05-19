@@ -318,6 +318,28 @@
     margin-top: 2px;
   }
 
+  /* ── Games link ──────────────────────────────────────────── */
+  #games-btn {
+    position: fixed;
+    bottom: calc(2vh + clamp(32px, 2.5vw, 40px) + 10px);
+    right: 2vw;
+    z-index: 10;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 8px;
+    opacity: 0.25;
+    transition: opacity 0.2s;
+    text-decoration: none;
+    display: flex;
+  }
+  #games-btn:hover { opacity: 0.8; }
+  #games-btn svg {
+    width: clamp(16px, 1.4vw, 22px);
+    height: clamp(16px, 1.4vw, 22px);
+    fill: #ffffff;
+  }
+
   /* ── Settings ─────────────────────────────────────────────── */
   #settings-btn {
     position: fixed;
@@ -460,6 +482,12 @@
   <input type="range" id="overlay-slider" min="0" max="80" step="5" value="55">
   <div id="overlay-value">55%</div>
 </div>
+
+<a id="games-btn" href="games/" title="Games">
+  <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+    <path d="M17 7H7a5 5 0 1 0 0 10h10a5 5 0 1 0 0-10zM7 15a1 1 0 1 1 0-2 1 1 0 0 1 0 2zm0-3a1 1 0 1 1 0-2 1 1 0 0 1 0 2zm3.5 1.5h-1v-1h-1v-1h1v-1h1v1h1v1h-1v1zm3.5 0a1 1 0 1 1 0-2 1 1 0 0 1 0 2zm2-2.5a1 1 0 1 1 0-2 1 1 0 0 1 0 2z"/>
+  </svg>
+</a>
 
 <button id="settings-btn" title="Settings">
   <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
