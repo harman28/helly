@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fruit Ninja · Helly Games</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800&display=swap');
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #000; overflow: hidden; cursor: none; }
+canvas { display: block; }
+#back {
+  position: fixed; top: 20px; left: 20px; z-index: 100;
+  font-family: 'Inter', sans-serif; font-size: clamp(10px, 0.8vw, 13px);
+  font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
+  color: rgba(255,200,80,0.32); text-decoration: none;
+  background: rgba(255,180,0,0.05);
+  border: 0.5px solid rgba(255,200,0,0.1);
+  border-radius: 99px; padding: 8px 18px;
+  transition: all 0.2s;
+}
+#back:hover { color: rgba(255,200,80,0.85); background: rgba(255,180,0,0.1); }
+</style>
+</head>
+<body>
+<a id="back" href="index.html">&#8592; Games</a>
+<canvas id="c"></canvas>
+<script>
+const C = document.getElementById('c');
+const ctx = C.getContext('2d');
+let W, H;
+function resize() { C.width = W = window.innerWidth; C.height = H = window.innerHeight; }
+resize();
+window.addEventListener('resize', resize);
+
+// ── Fruit definitions ─────────────────────────────────────────────────────────
+const FRUITS = [
+  { name:'watermelon', r:56, skin:'#28b030', lo:'#165a18', hi:'#60ee60', flesh:'#e02838', juice:'#e02030', pts:1 },
+  { name:'orange',     r:44, skin:'#e8780a', lo:'#a05008', hi:'#ffac44', flesh:'#ffe060', juice:'#ff8800', pts:1 },
+  { name:'apple',      r:40, skin:'#d82828', lo:'#8a1212', hi:'#ff6464', flesh:'#ffeebb', juice:'#ff2828', pts:1 },
+  { name:'banana',     r:38, skin:'#e8d418', lo:'#9a8c0a', hi:'#ffee58', flesh:'#fffacc', juice:'#ffe020', pts:1 },
+  { name:'strawberry', r:34, skin:'#e01830', lo:'#8a0c18', hi:'#ff5060', flesh:'#ff7080', juice:'#ff1040', pts:2 },
+  { name:'pineapple',  r:50, skin:'#d8b010', lo:'#8a7008', hi:'#ffe850', flesh:'#fff0a0', juice:'#ffd020', pts:3 },
+  { name:'peach',      r:42, skin:'#f09078', lo:'#c05030', hi:'#ffb898', flesh:'#ffe0c8', juice:'#f08060', pts:1 },
+  { name:'kiwi',       r:36, skin:'#3a7818', lo:'#1e4010', hi:'#70c038', flesh:'#a0e040', juice:'#60b020', pts:2 },
+  { name:'grape',      r:30, skin:'#7830c8', lo:'#401880', hi:'#b060ff', flesh:'#cc90ff', juice:'#9040e0', pts:2 },
+];
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let state = 'title'; // title | play | dead
+let items = [];      // fruits and bombs in flight
+let halves = [];     // sliced halves falling
+let particles = [];  // juice + sparks
+let floats = [];     // floating score texts
+let blade = [];      // [{x,y,t}] cursor history
+let splats = [];     // juice splat decals on background
+
+let score = 0, hiScore = 0, lives = 3;
+let combo = 0, comboTimer = 0;
+let spawnTimer = 0;
+let screenShake = 0;
+let lastTs = 0;
+let bladeVel = 0;    // smoothed blade speed in px/s
+
+const mouse = { x: 0, y: 0 };
+
+// ── Input ─────────────────────────────────────────────────────────────────────
+document.addEventListener('mousemove', e => {
+  const now = performance.now();
+  if (blade.length > 0) {
+    const last = blade[blade.length - 1];
+    const dt = (now - last.t) / 1000 || 0.001;
+    const dx = e.clientX - last.x, dy = e.clientY - last.y;
+    const spd = Math.sqrt(dx*dx + dy*dy) / dt;
+    bladeVel = bladeVel * 0.6 + spd * 0.4;
+  }
+  blade.push({ x: e.clientX, y: e.clientY, t: now });
+  if (blade.length > 20) blade.shift();
+  mouse.x = e.clientX;
+  mouse.y = e.clientY;
+});
+
+document.addEventListener('click', () => {
+  if (state === 'title' || state === 'dead') startGame();
+});
+
+// ── Boot ──────────────────────────────────────────────────────────────────────
+resize();
+requestAnimationFrame(loop);
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function rng(n) { return Math.random() * n; }
+function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+function lerp(a, b, t) { return a + (b-a)*t; }
+
+// Segment–circle intersection
+function segHitsCircle(ax, ay, bx, by, cx, cy, r) {
+  const dx = bx-ax, dy = by-ay;
+  const fx = ax-cx, fy = ay-cy;
+  const a2 = dx*dx + dy*dy;
+  if (a2 < 0.01) return Math.sqrt(fx*fx+fy*fy) < r;
+  const b = 2*(fx*dx + fy*dy);
+  const c = fx*fx + fy*fy - r*r;
+  let disc = b*b - 4*a2*c;
+  if (disc < 0) return false;
+  disc = Math.sqrt(disc);
+  const t1 = (-b-disc)/(2*a2), t2 = (-b+disc)/(2*a2);
+  return (t1>=0&&t1<=1)||(t2>=0&&t2<=1)||(t1<0&&t2>1);
+}
+
+// ── Game flow ─────────────────────────────────────────────────────────────────
+function startGame() {
+  items = []; halves = []; particles = []; floats = []; splats = [];
+  blade = []; bladeVel = 0;
+  score = 0; lives = 3; combo = 0; comboTimer = 0;
+  spawnTimer = 800; screenShake = 0;
+  state = 'play';
+}
+
+function spawnCluster() {
+  const count = 1 + Math.floor(rng(Math.min(4, 1 + score/120)));
+  for (let i = 0; i < count; i++) {
+    setTimeout(() => {
+      if (state !== 'play') return;
+      const isBomb = Math.random() < clamp(0.1 + score/3000, 0.1, 0.25);
+      const ft = FRUITS[Math.floor(rng(FRUITS.length))];
+      const r = isBomb ? 32 : ft.r;
+      const x = W * 0.12 + rng(W * 0.76);
+      const vy = -(Math.sqrt(2 * 0.35 * H * (0.5 + rng(0.32))));
+      items.push({
+        ft, r, isBomb,
+        x, y: H + r + 10,
+        vx: (rng(1)-0.5) * 5,
+        vy,
+        angle: rng(Math.PI*2),
+        spin: (rng(1)-0.5) * 0.07,
+        sliced: false, missed: false,
+        bounced: false,
+      });
+    }, i * 160);
+  }
+}
+
+function sliceItem(item) {
+  if (item.sliced || item.missed) return;
+  item.sliced = true;
+
+  if (item.isBomb) {
+    lives--;
+    screenShake = 18;
+    juiceBurst(item.x, item.y, '#ff4400', 35);
+    juiceBurst(item.x, item.y, '#ff8800', 20);
+    floats.push({ x: item.x, y: item.y - item.r, text: '-1', color: '#ff4400', life: 1, vy: -2 });
+    combo = 0;
+    if (lives <= 0) { state = 'dead'; if (score > hiScore) hiScore = score; }
+    return;
+  }
+
+  // Score + combo
+  const pts = item.ft.pts * (combo > 1 ? combo : 1);
+  score += pts;
+  if (score > hiScore) hiScore = score;
+  combo++;
+  comboTimer = 2200;
+
+  floats.push({ x: item.x, y: item.y - item.r, text: combo > 2 ? `x${combo}!` : `+${pts}`, color: combo > 2 ? '#ffdd00' : '#ffffff', life: 1, vy: -1.8 + rng(0.8) * -1 });
+
+  // Blade direction at moment of cut
+  const n = blade.length;
+  const bx = n > 1 ? blade[n-1].x - blade[n-2].x : 1;
+  const by = n > 1 ? blade[n-1].y - blade[n-2].y : 0;
+  const blen = Math.sqrt(bx*bx + by*by) || 1;
+  const px = -by/blen, py = bx/blen; // perpendicular
+  const cutAngle = Math.atan2(by, bx);
+
+  // Two halves
+  const spd = 3 + rng(3);
+  halves.push({ ft: item.ft, x: item.x, y: item.y, r: item.r,
+    vx: item.vx + px*spd, vy: item.vy + py*spd - 1,
+    angle: item.angle, spin: item.spin + rng(0.12)-0.06,
+    side: 0, cutAngle, life: 1 });
+  halves.push({ ft: item.ft, x: item.x, y: item.y, r: item.r,
+    vx: item.vx - px*spd, vy: item.vy - py*spd - 1,
+    angle: item.angle, spin: item.spin - rng(0.12)+0.06,
+    side: 1, cutAngle, life: 1 });
+
+  // Juice
+  juiceBurst(item.x, item.y, item.ft.juice, 22);
+  // Splat on background
+  splats.push({ x: item.x, y: item.y, r: item.r * (0.8 + rng(0.6)), color: item.ft.juice, alpha: 0.35 + rng(0.2) });
+}
+
+function juiceBurst(x, y, color, n) {
+  for (let i = 0; i < n; i++) {
+    const a = rng(Math.PI*2), s = 2 + rng(9);
+    particles.push({ x, y, vx: Math.cos(a)*s, vy: Math.sin(a)*s - 2,
+      life: 1, color, sz: 3 + rng(5) });
+  }
+}
+
+// ── Update ────────────────────────────────────────────────────────────────────
+function update(dt) {
+  const s = dt / 1000;
+  const G = 0.35;
+
+  if (comboTimer > 0) { comboTimer -= dt; if (comboTimer <= 0) combo = 0; }
+  if (screenShake > 0) screenShake = Math.max(0, screenShake - dt * 0.06);
+
+  // Spawn
+  if (state === 'play') {
+    spawnTimer -= dt;
+    if (spawnTimer <= 0) {
+      spawnCluster();
+      spawnTimer = Math.max(650, 1800 - score * 8) + rng(300);
+    }
+  }
+
+  // Items
+  items = items.filter(item => {
+    if (item.sliced) return false;
+    item.vy += G;
+    item.x += item.vx;
+    item.y += item.vy;
+    item.angle += item.spin;
+
+    // Miss: fell below screen without being sliced
+    if (!item.missed && item.y - item.r > H + 40) {
+      item.missed = true;
+      if (!item.isBomb) {
+        lives--;
+        combo = 0;
+        floats.push({ x: item.x, y: H - 60, text: 'MISS', color: '#ff4444', life: 1, vy: -1.5 });
+        if (lives <= 0) { state = 'dead'; if (score > hiScore) hiScore = score; }
+      }
+      return false;
+    }
+    return !item.missed;
+  });
+
+  // Halves
+  halves.forEach(h => {
+    h.vy += G;
+    h.x += h.vx;
+    h.y += h.vy;
+    h.angle += h.spin;
+    h.life -= s * 0.55;
+  });
+  halves = halves.filter(h => h.life > 0 && h.y < H + 120);
+
+  // Particles
+  particles.forEach(p => {
+    p.vy += G * 0.4;
+    p.x += p.vx; p.y += p.vy;
+    p.vx *= 0.93; p.vy *= 0.95;
+    p.life -= s * 1.1;
+  });
+  particles = particles.filter(p => p.life > 0);
+
+  // Floats
+  floats.forEach(f => { f.y += f.vy; f.life -= s * 0.9; });
+  floats = floats.filter(f => f.life > 0);
+
+  // Blade collision check
+  if (state === 'play' && bladeVel > 280 && blade.length >= 2) {
+    const from = Math.max(0, blade.length - 5);
+    for (let si = from; si < blade.length - 1; si++) {
+      const ba = blade[si], bb = blade[si+1];
+      items.forEach(item => {
+        if (!item.sliced && !item.missed) {
+          if (segHitsCircle(ba.x, ba.y, bb.x, bb.y, item.x, item.y, item.r)) {
+            sliceItem(item);
+          }
+        }
+      });
+    }
+  }
+}
+
+// ── Draw ──────────────────────────────────────────────────────────────────────
+
+function drawFruitWhole(x, y, r, ft, angle) {
+  ctx.save();
+  ctx.translate(x, y); ctx.rotate(angle);
+  const g = ctx.createRadialGradient(-r*.32, -r*.32, 0, 0, 0, r);
+  g.addColorStop(0, ft.hi); g.addColorStop(0.55, ft.skin); g.addColorStop(1, ft.lo);
+  ctx.shadowBlur = 14; ctx.shadowColor = ft.juice;
+  ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI*2);
+  ctx.fillStyle = g; ctx.fill();
+  // Highlight
+  const hg = ctx.createRadialGradient(-r*.28, -r*.33, 0, -r*.28, -r*.33, r*.46);
+  hg.addColorStop(0, 'rgba(255,255,255,0.38)'); hg.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = hg; ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.restore();
+}
+
+function drawBomb(x, y, r, angle) {
+  ctx.save();
+  ctx.translate(x, y); ctx.rotate(angle);
+  // Body
+  ctx.shadowBlur = 12; ctx.shadowColor = '#ff4400';
+  ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI*2);
+  ctx.fillStyle = '#1a1a1a'; ctx.fill();
+  // Fuse
+  ctx.strokeStyle = '#c08840'; ctx.lineWidth = 3; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(0, -r); ctx.quadraticCurveTo(r*.5, -r*1.2, r*.3, -r*1.55); ctx.stroke();
+  // Spark
+  const spark = Math.sin(Date.now()/60) > 0;
+  if (spark) {
+    ctx.fillStyle = '#ffcc00'; ctx.shadowBlur = 15; ctx.shadowColor = '#ffaa00';
+    ctx.beginPath(); ctx.arc(r*.3, -r*1.55, 4, 0, Math.PI*2); ctx.fill();
+  }
+  // Skull text
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = 'rgba(255,255,255,0.55)';
+  ctx.font = `bold ${Math.round(r*0.9)}px Inter, sans-serif`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('💣', 0, 2);
+  ctx.textBaseline = 'alphabetic';
+  ctx.restore();
+}
+
+function drawHalf(h) {
+  const { ft, x, y, r, side, cutAngle, angle, life } = h;
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(angle);
+  ctx.globalAlpha = Math.min(1, life * 1.4);
+
+  const lc = cutAngle - angle; // cut angle in local space
+  const a0 = lc, a1 = lc + Math.PI;
+
+  // Outer skin half-disc
+  ctx.beginPath();
+  if (side === 0) ctx.arc(0, 0, r, a0, a1, false);
+  else            ctx.arc(0, 0, r, a1, a0, true);
+  ctx.closePath();
+
+  const g = ctx.createRadialGradient(-r*.3, -r*.3, r*.1, 0, 0, r);
+  g.addColorStop(0, ft.hi); g.addColorStop(0.55, ft.skin); g.addColorStop(1, ft.lo);
+  ctx.shadowBlur = 10; ctx.shadowColor = ft.juice;
+  ctx.fillStyle = g; ctx.fill(); ctx.shadowBlur = 0;
+
+  // Flesh inner half-disc (slightly smaller, layered on top)
+  ctx.beginPath();
+  if (side === 0) ctx.arc(0, 0, r * 0.6, a0, a1, false);
+  else            ctx.arc(0, 0, r * 0.6, a1, a0, true);
+  ctx.closePath();
+  ctx.fillStyle = ft.flesh;
+  const prevAlpha = ctx.globalAlpha;
+  ctx.globalAlpha *= 0.78; ctx.fill(); ctx.globalAlpha = prevAlpha;
+
+  // Highlight
+  const hg = ctx.createRadialGradient(-r*.28, -r*.3, 0, -r*.28, -r*.3, r*.45);
+  hg.addColorStop(0, 'rgba(255,255,255,0.28)'); hg.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = hg;
+  ctx.beginPath();
+  if (side === 0) ctx.arc(0, 0, r, a0, a1, false);
+  else            ctx.arc(0, 0, r, a1, a0, true);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.restore();
+}
+
+function drawBlade(ts) {
+  if (blade.length < 2 || bladeVel < 100) return;
+  const opacity = Math.min(1, bladeVel / 1000);
+  for (let i = 1; i < blade.length; i++) {
+    const a = blade[i-1], b = blade[i];
+    const age = (ts - b.t) / 200; // 0=new, 1=old
+    if (age > 1) continue;
+    const t = 1 - age;
+    const thick = (1 - i/blade.length) * 18 * t * opacity;
+    if (thick < 0.3) continue;
+    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y);
+    ctx.lineWidth = thick;
+    ctx.lineCap = 'round';
+    const hue = 45 + (1-t)*15;
+    ctx.strokeStyle = `hsla(${hue},100%,${75+t*20}%,${t * opacity * 0.95})`;
+    ctx.shadowBlur = thick * 2; ctx.shadowColor = '#ffe080';
+    ctx.stroke(); ctx.shadowBlur = 0;
+  }
+}
+
+function drawHUD() {
+  const fs = Math.max(20, Math.round(W * 0.028));
+  // Score
+  ctx.textAlign = 'center';
+  ctx.font = `800 ${Math.round(fs * 1.5)}px Inter, sans-serif`;
+  ctx.fillStyle = '#ffffff';
+  ctx.shadowBlur = 10; ctx.shadowColor = 'rgba(255,255,255,0.4)';
+  ctx.fillText(String(score).padStart(5, '0'), W * 0.5, 64);
+  ctx.shadowBlur = 0;
+  ctx.font = `${Math.round(fs * 0.5)}px Inter, sans-serif`;
+  ctx.fillStyle = 'rgba(255,255,255,0.25)';
+  ctx.fillText(`BEST  ${String(hiScore).padStart(5,'0')}`, W * 0.5, 88);
+
+  // Lives (fruit icons — just colored circles)
+  for (let i = 0; i < 3; i++) {
+    const lx = 32 + i * 40, ly = 44;
+    const alive = i < lives;
+    ctx.beginPath(); ctx.arc(lx, ly, 14, 0, Math.PI*2);
+    ctx.fillStyle = alive ? '#e02838' : 'rgba(255,255,255,0.08)';
+    if (alive) { ctx.shadowBlur = 10; ctx.shadowColor = '#e02838'; }
+    ctx.fill(); ctx.shadowBlur = 0;
+    if (alive) {
+      ctx.fillStyle = '#ff6070';
+      ctx.beginPath(); ctx.arc(lx-4, ly-4, 5, 0, Math.PI*2); ctx.fill();
+    }
+  }
+
+  // Combo
+  if (combo > 1 && comboTimer > 0) {
+    const cf = comboTimer / 2200;
+    ctx.globalAlpha = Math.min(1, cf * 3);
+    ctx.textAlign = 'right';
+    ctx.font = `800 ${Math.round(fs * 0.9)}px Inter, sans-serif`;
+    ctx.fillStyle = '#ffdd00';
+    ctx.shadowBlur = 16; ctx.shadowColor = '#ffaa00';
+    ctx.fillText(`${combo}× COMBO`, W - 28, 64);
+    ctx.shadowBlur = 0;
+    ctx.globalAlpha = 1;
+  }
+
+  // Bottom hint
+  ctx.textAlign = 'center';
+  ctx.font = `${Math.round(fs * 0.35)}px Inter, sans-serif`;
+  ctx.fillStyle = 'rgba(255,255,255,0.15)';
+  ctx.fillText('WAVE FAST TO SLICE  ·  AVOID BOMBS', W * 0.5, H - 22);
+}
+
+function drawTitle(ts) {
+  const t = ts / 1000;
+  ctx.textAlign = 'center';
+  const fs = Math.max(44, Math.round(W * 0.075));
+
+  // Animated fruits in background
+  const demoFruits = [
+    { ft: FRUITS[0], x: W*.22, y: H*.5 + Math.sin(t*0.9+0)*H*.08, r: 54, a: t*0.6 },
+    { ft: FRUITS[1], x: W*.42, y: H*.5 + Math.sin(t*1.1+1)*H*.07, r: 44, a: t*0.4+1 },
+    { ft: FRUITS[4], x: W*.62, y: H*.5 + Math.sin(t*0.8+2)*H*.09, r: 34, a: t*0.7+2 },
+    { ft: FRUITS[5], x: W*.78, y: H*.5 + Math.sin(t*1.0+3)*H*.06, r: 50, a: t*0.5+3 },
+    { ft: FRUITS[8], x: W*.12, y: H*.5 + Math.sin(t*1.2+4)*H*.1,  r: 30, a: t*0.8+4 },
+  ];
+  demoFruits.forEach(d => drawFruitWhole(d.x, d.y, d.r, d.ft, d.a));
+
+  // Slash line through demo fruits
+  const slashY = H * 0.5 + Math.sin(t * 0.7) * H * 0.06;
+  const slashAlpha = 0.5 + 0.3 * Math.sin(t * 2);
+  ctx.strokeStyle = `rgba(255,230,100,${slashAlpha})`;
+  ctx.lineWidth = 3; ctx.shadowBlur = 12; ctx.shadowColor = '#ffe080';
+  ctx.beginPath(); ctx.moveTo(W * 0.05, slashY - 20); ctx.lineTo(W * 0.92, slashY + 20); ctx.stroke();
+  ctx.shadowBlur = 0;
+
+  // Title
+  ctx.font = `800 ${fs}px Inter, sans-serif`;
+  ctx.fillStyle = '#ffffff';
+  ctx.shadowBlur = 24 + 8*Math.sin(t*2); ctx.shadowColor = '#ffcc40';
+  ctx.fillText('FRUIT NINJA', W*0.5, H * 0.3);
+  ctx.shadowBlur = 0;
+
+  ctx.font = `${Math.round(fs * 0.27)}px Inter, sans-serif`;
+  ctx.fillStyle = `rgba(255,220,120,${0.5 + 0.4*Math.sin(t*2.5)})`;
+  ctx.fillText('WAVE YOUR REMOTE FAST TO SLICE', W*0.5, H * 0.39);
+
+  ctx.fillStyle = 'rgba(255,255,255,0.22)';
+  ctx.font = `${Math.round(fs * 0.22)}px Inter, sans-serif`;
+  ctx.fillText('CLICK TO START', W*0.5, H * 0.48);
+}
+
+function drawDead() {
+  ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(0, 0, W, H);
+  const fs = Math.max(40, Math.round(W * 0.07));
+  ctx.textAlign = 'center';
+  ctx.font = `800 ${fs}px Inter, sans-serif`;
+  ctx.shadowBlur = 28; ctx.shadowColor = '#ff4020';
+  ctx.fillStyle = '#ff4020';
+  ctx.fillText('GAME OVER', W*0.5, H*0.38); ctx.shadowBlur = 0;
+  ctx.fillStyle = '#ffffff';
+  ctx.font = `600 ${Math.round(fs*0.45)}px Inter, sans-serif`;
+  ctx.fillText(`SCORE  ${score}`, W*0.5, H*0.5);
+  if (score >= hiScore && score > 0) {
+    ctx.fillStyle = '#ffdd00';
+    ctx.font = `700 ${Math.round(fs*0.3)}px Inter, sans-serif`;
+    ctx.fillText('NEW BEST!', W*0.5, H*0.58);
+  }
+  ctx.fillStyle = 'rgba(255,255,255,0.22)';
+  ctx.font = `${Math.round(fs*0.24)}px Inter, sans-serif`;
+  ctx.fillText('CLICK TO PLAY AGAIN', W*0.5, H*0.68);
+}
+
+// ── Main loop ─────────────────────────────────────────────────────────────────
+function loop(ts) {
+  const dt = Math.min(ts - lastTs, 50);
+  lastTs = ts;
+  if (state === 'play') update(dt);
+
+  // Screen shake
+  let ox = 0, oy = 0;
+  if (screenShake > 0) {
+    ox = (Math.random()-0.5) * screenShake;
+    oy = (Math.random()-0.5) * screenShake;
+  }
+
+  ctx.save();
+  if (ox || oy) ctx.translate(ox, oy);
+
+  // Background
+  ctx.fillStyle = '#040610';
+  ctx.fillRect(-Math.abs(ox)-2, -Math.abs(oy)-2, W+4+Math.abs(ox)*2, H+4+Math.abs(oy)*2);
+
+  // Persistent juice splats
+  splats.forEach(s => {
+    ctx.globalAlpha = s.alpha;
+    ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI*2);
+    ctx.fillStyle = s.color; ctx.fill();
+  });
+  ctx.globalAlpha = 1;
+
+  if (state === 'title') { drawTitle(ts); ctx.restore(); requestAnimationFrame(loop); return; }
+
+  // Particles
+  particles.forEach(p => {
+    ctx.globalAlpha = p.life;
+    ctx.shadowBlur = 6; ctx.shadowColor = p.color;
+    ctx.fillStyle = p.color;
+    ctx.fillRect(p.x - p.sz/2, p.y - p.sz/2, p.sz, p.sz);
+    ctx.shadowBlur = 0;
+  });
+  ctx.globalAlpha = 1;
+
+  // Halves
+  halves.forEach(drawHalf);
+
+  // Whole items
+  items.forEach(item => {
+    if (item.sliced || item.missed) return;
+    if (item.isBomb) drawBomb(item.x, item.y, item.r, item.angle);
+    else drawFruitWhole(item.x, item.y, item.r, item.ft, item.angle);
+  });
+
+  // Blade trail
+  drawBlade(ts);
+
+  // Floating texts
+  floats.forEach(f => {
+    ctx.globalAlpha = f.life;
+    ctx.textAlign = 'center';
+    const fs2 = Math.max(18, Math.round(W * 0.022));
+    ctx.font = `800 ${fs2}px Inter, sans-serif`;
+    ctx.fillStyle = f.color;
+    ctx.shadowBlur = 10; ctx.shadowColor = f.color;
+    ctx.fillText(f.text, f.x, f.y);
+    ctx.shadowBlur = 0;
+  });
+  ctx.globalAlpha = 1;
+
+  drawHUD();
+  if (state === 'dead') drawDead();
+
+  ctx.restore();
+  requestAnimationFrame(loop);
+}
+</script>
+</body>
+</html>
