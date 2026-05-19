@@ -382,11 +382,7 @@
 <body>
 
 <div id="webcam">
-  <iframe
-    src="https://www.youtube-nocookie.com/embed/9Pm6Ji6tm7s?autoplay=1&mute=1&controls=0&loop=1&playlist=9Pm6Ji6tm7s&modestbranding=1&showinfo=0&rel=0&origin=https://hellyhome.nl"
-    allow="autoplay; encrypted-media"
-    allowfullscreen>
-  </iframe>
+  <div id="yt-player"></div>
 </div>
 
 <div id="overlay"></div>
@@ -472,7 +468,28 @@
   </svg>
 </button>
 
+<script src="https://www.youtube.com/iframe_api"></script>
 <script>
+var ytPlayer;
+function onYouTubeIframeAPIReady() {
+  ytPlayer = new YT.Player('yt-player', {
+    videoId: '9Pm6Ji6tm7s',
+    playerVars: {
+      autoplay: 1, mute: 1, controls: 0,
+      loop: 1, playlist: '9Pm6Ji6tm7s',
+      modestbranding: 1, showinfo: 0, rel: 0, playsinline: 1,
+    },
+    events: {
+      onReady: e => e.target.playVideo(),
+      onStateChange: e => {
+        if (e.data === YT.PlayerState.PAUSED || e.data === YT.PlayerState.ENDED) {
+          e.target.playVideo();
+        }
+      },
+    },
+  });
+}
+
 const TPC_NDSM       = '30009902';
 const TPC_CENTRAAL   = '30009903';
 const TPC_PONTSTEIGER = '30009900';
