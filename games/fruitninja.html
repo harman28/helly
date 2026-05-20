@@ -33,6 +33,46 @@ function resize() { C.width = W = window.innerWidth; C.height = H = window.inner
 resize();
 window.addEventListener('resize', resize);
 
+// ── Sound effects (Web Audio API) ────────────────────────────────────────────
+const SFX = (() => {
+  let ac = null;
+  function get() {
+    if (!ac) ac = new (window.AudioContext || window.webkitAudioContext)();
+    return ac;
+  }
+  function noise(duration, gain, filterFreq, filterType = 'bandpass') {
+    const a = get(), t = a.currentTime;
+    const buf = a.createBuffer(1, Math.ceil(a.sampleRate * duration), a.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length);
+    const src = a.createBufferSource(); src.buffer = buf;
+    const f = a.createBiquadFilter(); f.type = filterType; f.frequency.value = filterFreq;
+    const g = a.createGain();
+    g.gain.setValueAtTime(gain, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + duration);
+    src.connect(f); f.connect(g); g.connect(a.destination);
+    src.start(t);
+  }
+  function tone(freq, endFreq, duration, gain, type = 'sine') {
+    const a = get(), t = a.currentTime;
+    const osc = a.createOscillator(); osc.type = type;
+    osc.frequency.setValueAtTime(freq, t);
+    osc.frequency.exponentialRampToValueAtTime(endFreq, t + duration);
+    const g = a.createGain();
+    g.gain.setValueAtTime(gain, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + duration);
+    osc.connect(g); g.connect(a.destination);
+    osc.start(t); osc.stop(t + duration);
+  }
+  return {
+    slice()  { noise(0.11, 0.35, 3200); tone(900, 400, 0.09, 0.15, 'square'); },
+    bomb()   { noise(0.45, 0.7, 260, 'lowpass'); tone(90, 28, 0.35, 0.55); },
+    miss()   { tone(320, 110, 0.28, 0.3, 'sawtooth'); },
+    combo()  { tone(660, 880, 0.12, 0.25); tone(880, 1100, 0.12, 0.2); },
+    start()  { tone(330, 660, 0.18, 0.3); tone(660, 990, 0.18, 0.25); },
+  };
+})();
+
 // ── Fruit definitions ─────────────────────────────────────────────────────────
 const FRUITS = [
   { name:'watermelon', r:56, skin:'#28b030', lo:'#165a18', hi:'#60ee60', flesh:'#e02838', juice:'#e02030', pts:1 },
@@ -115,6 +155,7 @@ function startGame() {
   score = 0; lives = 3; combo = 0; comboTimer = 0;
   spawnTimer = 800; screenShake = 0;
   state = 'play';
+  SFX.start();
 }
 
 function spawnCluster() {
@@ -152,6 +193,7 @@ function sliceItem(item) {
     juiceBurst(item.x, item.y, '#ff8800', 20);
     floats.push({ x: item.x, y: item.y - item.r, text: '-1', color: '#ff4400', life: 1, vy: -2 });
     combo = 0;
+    SFX.bomb();
     if (lives <= 0) { state = 'dead'; if (score > hiScore) hiScore = score; }
     return;
   }
@@ -162,6 +204,7 @@ function sliceItem(item) {
   if (score > hiScore) hiScore = score;
   combo++;
   comboTimer = 2200;
+  combo > 2 ? SFX.combo() : SFX.slice();
 
   floats.push({ x: item.x, y: item.y - item.r, text: combo > 2 ? `x${combo}!` : `+${pts}`, color: combo > 2 ? '#ffdd00' : '#ffffff', life: 1, vy: -1.8 + rng(0.8) * -1 });
 
@@ -229,6 +272,7 @@ function update(dt) {
       if (!item.isBomb) {
         lives--;
         combo = 0;
+        SFX.miss();
         floats.push({ x: item.x, y: H - 60, text: 'MISS', color: '#ff4444', life: 1, vy: -1.5 });
         if (lives <= 0) { state = 'dead'; if (score > hiScore) hiScore = score; }
       }

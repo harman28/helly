@@ -32,6 +32,47 @@ function resize() { C.width = window.innerWidth; C.height = window.innerHeight; 
 resize();
 window.addEventListener('resize', resize);
 
+// ── Sound effects (Web Audio API) ────────────────────────────────────────────
+const SFX = (() => {
+  let ac = null;
+  function get() {
+    if (!ac) ac = new (window.AudioContext || window.webkitAudioContext)();
+    return ac;
+  }
+  function noise(dur, gain, freq, type = 'lowpass') {
+    const a = get(), t = a.currentTime;
+    const buf = a.createBuffer(1, Math.ceil(a.sampleRate * dur), a.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length);
+    const src = a.createBufferSource(); src.buffer = buf;
+    const f = a.createBiquadFilter(); f.type = type; f.frequency.value = freq;
+    const g = a.createGain();
+    g.gain.setValueAtTime(gain, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    src.connect(f); f.connect(g); g.connect(a.destination);
+    src.start(t);
+  }
+  function tone(freq, endFreq, dur, gain, type = 'sine') {
+    const a = get(), t = a.currentTime;
+    const osc = a.createOscillator(); osc.type = type;
+    osc.frequency.setValueAtTime(freq, t);
+    osc.frequency.exponentialRampToValueAtTime(endFreq, t + dur);
+    const g = a.createGain();
+    g.gain.setValueAtTime(gain, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    osc.connect(g); g.connect(a.destination);
+    osc.start(t); osc.stop(t + dur);
+  }
+  return {
+    burst()      { tone(1200, 200, 0.12, 0.28, 'sawtooth'); noise(0.08, 0.18, 2000, 'bandpass'); },
+    killBasic()  { noise(0.18, 0.4, 800, 'bandpass'); tone(400, 80, 0.18, 0.2); },
+    killFast()   { tone(600, 1200, 0.08, 0.25, 'square'); noise(0.1, 0.3, 1500, 'bandpass'); },
+    killHeavy()  { noise(0.4, 0.65, 200, 'lowpass'); tone(80, 30, 0.35, 0.5); },
+    playerHit()  { tone(220, 110, 0.22, 0.4, 'sawtooth'); noise(0.15, 0.3, 400, 'lowpass'); },
+    wave()       { tone(330, 660, 0.25, 0.2); tone(660, 990, 0.2, 0.15); },
+  };
+})();
+
 let W, H;
 function dims() { W = C.width; H = C.height; }
 
@@ -93,6 +134,7 @@ function nextWave() {
   killCount = 0; spawnTimer = 0;
   waveTextTimer = 2200;
   state = 'wavetext';
+  SFX.wave();
 }
 
 function fireBurst() {
@@ -102,6 +144,7 @@ function fireBurst() {
     bullets.push({ x: ship.x, y: ship.y, vx: Math.cos(a) * 20, vy: Math.sin(a) * 20, life: 1 });
   }
   burst(ship.x, ship.y, '#00ffcc', 18);
+  SFX.burst();
 }
 
 function spawnEnemy() {
@@ -195,6 +238,9 @@ function update(dt) {
       if (score > hiScore) hiScore = score;
       killCount++;
       burst(e.x, e.y, e.color, e.type === 'heavy' ? 60 : 25);
+      if (e.type === 'heavy') SFX.killHeavy();
+      else if (e.type === 'fast') SFX.killFast();
+      else SFX.killBasic();
       if (killCount >= waveKillTarget) nextWave();
       return false;
     }
@@ -203,6 +249,7 @@ function update(dt) {
       lives--;
       invTimer = 2800;
       burst(ship.x, ship.y, '#00ffff', 50);
+      SFX.playerHit();
       if (lives <= 0) { state = 'dead'; burst(ship.x, ship.y, '#00ffff', 100); }
     }
 

@@ -33,6 +33,48 @@ function resize() { C.width = W = window.innerWidth; C.height = H = window.inner
 resize();
 window.addEventListener('resize', resize);
 
+// ── Sound effects (Web Audio API) ────────────────────────────────────────────
+const SFX = (() => {
+  let ac = null;
+  function get() {
+    if (!ac) ac = new (window.AudioContext || window.webkitAudioContext)();
+    return ac;
+  }
+  function tone(freq, endFreq, dur, gain, type = 'sine') {
+    const a = get(), t = a.currentTime;
+    const osc = a.createOscillator(); osc.type = type;
+    osc.frequency.setValueAtTime(freq, t);
+    osc.frequency.exponentialRampToValueAtTime(endFreq, t + dur);
+    const g = a.createGain();
+    g.gain.setValueAtTime(gain, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    osc.connect(g); g.connect(a.destination);
+    osc.start(t); osc.stop(t + dur);
+  }
+  function noise(dur, gain, freq) {
+    const a = get(), t = a.currentTime;
+    const buf = a.createBuffer(1, Math.ceil(a.sampleRate * dur), a.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length);
+    const src = a.createBufferSource(); src.buffer = buf;
+    const f = a.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = freq;
+    const g = a.createGain();
+    g.gain.setValueAtTime(gain, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    src.connect(f); f.connect(g); g.connect(a.destination);
+    src.start(t);
+  }
+  return {
+    hitPlayer() { tone(520, 260, 0.08, 0.35, 'square'); noise(0.07, 0.2, 1800); },
+    hitAI()     { tone(380, 190, 0.08, 0.3, 'square'); noise(0.07, 0.15, 1400); },
+    bounce()    { tone(280, 140, 0.06, 0.2); },
+    net()       { noise(0.18, 0.35, 320); tone(160, 80, 0.15, 0.2); },
+    pointWon()  { tone(440, 660, 0.12, 0.28); tone(660, 880, 0.12, 0.22); tone(880, 1100, 0.15, 0.18); },
+    pointLost() { tone(440, 330, 0.14, 0.28); tone(330, 220, 0.18, 0.22); },
+    matchWon()  { [440,550,660,880].forEach((f,i) => setTimeout(() => tone(f,f*1.05,0.2,0.25), i*130)); },
+  };
+})();
+
 // --- Responsive geometry (called fresh each frame) ---
 const G = {
   floor:    () => H * 0.86,
@@ -125,6 +167,7 @@ function awardPoint(winner) {
   stateTimer = 2000;
   pointWin = winner;
   if (winner === 'player') score.pPts++; else score.aPts++;
+  winner === 'player' ? SFX.pointWon() : SFX.pointLost();
 
   // Check game
   const pp = score.pPts, ap = score.aPts;
@@ -143,6 +186,7 @@ function awardPoint(winner) {
     if (Math.max(pg, ag) >= 6 && Math.abs(pg - ag) >= 2) {
       matchWin = pg > ag ? 'player' : 'ai';
       state = 'won';
+      if (matchWin === 'player') SFX.matchWon();
     }
   }
 }
@@ -208,6 +252,7 @@ function update(dt) {
       ball.vy = -Math.abs(ball.vy) * 0.7;
       ball.vx *= 0.975;
       if (Math.abs(ball.vy) < 1.5) ball.vy = -1.5;
+      SFX.bounce();
     }
 
     // Net
@@ -217,8 +262,12 @@ function update(dt) {
       ball.vx = -ball.vx * 0.3;
       ball.vy *= 0.25;
       burst(nx, clamp(ball.y, ntop, fl), '#fff', 10);
+      SFX.net();
       awardPoint(lastHit === 'player' ? 'ai' : 'player');
     }
+
+    // Floor bounce
+    // (sound wired below in the floor bounce block)
 
     // Player racket (ball moving rightward → toward player)
     if (ball.vx > 0 &&
@@ -233,6 +282,7 @@ function update(dt) {
       ball.x = px - rw - br - 1;
       mouseVY = 0;
       burst(ball.x, ball.y, '#00ffcc', 20);
+      SFX.hitPlayer();
     }
 
     // AI racket (ball moving leftward → toward AI)
@@ -248,6 +298,7 @@ function update(dt) {
       ball.vy = pos * 5 + aim + (Math.random() - 0.5) * 3;
       ball.x = ax + rw + br + 1;
       burst(ball.x, ball.y, '#ff8844', 14);
+      SFX.hitAI();
     }
 
     // Out past rackets
