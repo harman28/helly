@@ -321,23 +321,38 @@
   /* ── Games link ──────────────────────────────────────────── */
   #games-btn {
     position: fixed;
-    bottom: calc(2vh + clamp(32px, 2.5vw, 40px) + 10px);
+    bottom: calc(2vh + clamp(32px, 2.5vw, 40px) + 16px);
     right: 2vw;
     z-index: 10;
-    background: none;
-    border: none;
+    background: #1a1a1a;
+    border: 0.5px solid rgba(255,255,255,0.12);
+    border-radius: 14px;
     cursor: pointer;
-    padding: 8px;
-    opacity: 0.25;
-    transition: opacity 0.2s;
+    padding: clamp(14px, 1.6vh, 22px) clamp(20px, 2vw, 32px);
+    opacity: 0.75;
+    transition: opacity 0.2s, background 0.2s, border-color 0.2s;
     text-decoration: none;
     display: flex;
+    align-items: center;
+    gap: clamp(10px, 1vw, 16px);
   }
-  #games-btn:hover { opacity: 0.8; }
+  #games-btn:hover {
+    opacity: 1;
+    background: #242424;
+    border-color: rgba(255,255,255,0.22);
+  }
   #games-btn svg {
     width: clamp(28px, 2.8vw, 44px);
     height: clamp(28px, 2.8vw, 44px);
     fill: #ffffff;
+    flex-shrink: 0;
+  }
+  #games-btn-label {
+    font-size: clamp(0.85rem, 1.1vw, 1.1rem);
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #ffffff;
   }
 
   /* ── Settings ─────────────────────────────────────────────── */
@@ -487,6 +502,7 @@
   <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
     <path d="M17 7H7a5 5 0 1 0 0 10h10a5 5 0 1 0 0-10zM7 15a1 1 0 1 1 0-2 1 1 0 0 1 0 2zm0-3a1 1 0 1 1 0-2 1 1 0 0 1 0 2zm3.5 1.5h-1v-1h-1v-1h1v-1h1v1h1v1h-1v1zm3.5 0a1 1 0 1 1 0-2 1 1 0 0 1 0 2zm2-2.5a1 1 0 1 1 0-2 1 1 0 0 1 0 2z"/>
   </svg>
+  <span id="games-btn-label">Games</span>
 </a>
 
 <button id="settings-btn" title="Settings">
