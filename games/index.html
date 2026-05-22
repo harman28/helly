@@ -242,55 +242,113 @@ html, body {
   function size() { W = c.width = c.offsetWidth; H = c.height = c.offsetHeight; }
   size();
   const ctx = c.getContext('2d');
-  const ball = { x: 0, y: 0, vx: 2.4, vy: -1.8 };
-  let pY = 0, aiY = 0;
-  function init() { ball.x = W*0.7; ball.y = H*0.5; pY = H*0.4; aiY = H*0.4; }
-  init();
-  const FLOOR = () => H * 0.82;
-  const NET = () => W * 0.5;
-  const NET_H = () => H * 0.22;
+
+  const G = 0.2, BR = 4;
+  let ball = { x: 0, y: 0, vx: 3.5, vy: -2.5 };
+  let pY = 0, aiY = 0, trail = [];
+
+  function reset() {
+    const dir = Math.random() < 0.5 ? 1 : -1;
+    ball.x = W * (dir > 0 ? 0.32 : 0.68);
+    ball.y = H * 0.45;
+    ball.vx = 3.5 * dir; ball.vy = -2.5;
+    pY = H * 0.38; aiY = H * 0.38; trail = [];
+  }
+  reset();
+
   function draw() {
-    const fl = FLOOR(), nx = NET(), nh = NET_H();
-    ctx.fillStyle = '#060810'; ctx.fillRect(0,0,W,H);
-    // court
-    ctx.fillStyle = '#0c2018';
-    ctx.fillRect(W*0.06, H*0.1, W*0.88, fl - H*0.1);
-    // lines
-    ctx.strokeStyle = 'rgba(255,255,255,0.2)'; ctx.lineWidth = 1;
-    ctx.strokeRect(W*0.06, H*0.1, W*0.88, fl - H*0.1);
-    ctx.beginPath(); ctx.moveTo(W*0.06,fl); ctx.lineTo(W*0.94,fl); ctx.stroke();
-    // net
-    ctx.strokeStyle = 'rgba(255,255,255,0.6)'; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.moveTo(nx, fl); ctx.lineTo(nx, fl-nh); ctx.stroke();
-    // ball physics
-    ball.vy += 0.09;
-    ball.x += ball.vx; ball.y += ball.vy;
-    if (ball.y + 4 > fl) { ball.y = fl-4; ball.vy *= -0.72; }
-    if (ball.x < W*0.09) { ball.x = W*0.09; ball.vx = Math.abs(ball.vx) + 0.5; ball.vy += (Math.random()-0.5)*2; }
-    if (ball.x > W*0.91) { ball.x = W*0.91; ball.vx = -(Math.abs(ball.vx) + 0.5); ball.vy += (Math.random()-0.5)*2; }
-    if (ball.x > nx-4 && ball.x < nx+4 && ball.y + 4 > fl-nh) { ball.vx = -ball.vx*0.5; ball.vy *= 0.4; }
-    // AI & player follow ball
-    const speed = 3;
-    const halfRH = H * 0.12;
-    pY += Math.sign(ball.y - halfRH - pY) * Math.min(Math.abs(ball.y - halfRH - pY), speed);
-    aiY += Math.sign(ball.y - halfRH - aiY) * Math.min(Math.abs(ball.y - halfRH - aiY), speed * 0.7);
-    pY = Math.max(H*0.12, Math.min(fl - halfRH*2, pY));
-    aiY = Math.max(H*0.12, Math.min(fl - halfRH*2, aiY));
-    // shadow
-    const sdist = fl - ball.y;
-    const sR = Math.max(2, 4*(1 - sdist/(fl-H*0.1)*0.5));
-    ctx.globalAlpha = 0.35; ctx.fillStyle = '#000';
-    ctx.beginPath(); ctx.ellipse(ball.x, fl-1, sR, sR*0.4, 0, 0, Math.PI*2); ctx.fill(); ctx.globalAlpha = 1;
-    // ball
-    ctx.beginPath(); ctx.arc(ball.x, ball.y, 4, 0, Math.PI*2);
-    ctx.fillStyle = '#ffe040'; ctx.shadowBlur = 10; ctx.shadowColor = '#ffc800'; ctx.fill(); ctx.shadowBlur = 0;
-    // rackets
-    const rw = 4, rh = halfRH*2;
-    ctx.shadowBlur = 8; ctx.shadowColor = '#00ffcc';
-    ctx.fillStyle = '#00ffcc'; ctx.fillRect(W*0.88, pY, rw, rh);
-    ctx.shadowBlur = 8; ctx.shadowColor = '#ff6644';
-    ctx.fillStyle = '#ff6644'; ctx.fillRect(W*0.08, aiY, rw, rh);
-    ctx.shadowBlur = 0;
+    const fl = H * 0.86, nt = H * 0.6, nx = W * 0.5;
+    const px = W * 0.9, ax = W * 0.08;
+    const rw = Math.max(3, W * 0.013), rh = Math.max(16, H * 0.3);
+
+    ctx.fillStyle = '#060810'; ctx.fillRect(0, 0, W, H);
+
+    // Court
+    ctx.fillStyle = '#091a10';
+    ctx.fillRect(W*0.04, H*0.08, W*0.92, fl - H*0.08);
+    ctx.strokeStyle = 'rgba(255,255,255,0.15)'; ctx.lineWidth = 1;
+    ctx.strokeRect(W*0.04, H*0.08, W*0.92, fl - H*0.08);
+    ctx.beginPath(); ctx.moveTo(W*0.04, fl); ctx.lineTo(W*0.96, fl);
+    ctx.strokeStyle = 'rgba(255,255,255,0.3)'; ctx.lineWidth = 1.5; ctx.stroke();
+
+    // Net
+    ctx.strokeStyle = 'rgba(255,255,255,0.55)'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(nx, fl); ctx.lineTo(nx, nt); ctx.stroke();
+    ctx.fillStyle = 'rgba(255,255,255,0.5)'; ctx.fillRect(nx - 3, nt - 6, 6, 5);
+
+    // Physics
+    ball.vy += G; ball.x += ball.vx; ball.y += ball.vy;
+
+    if (ball.y + BR > fl) {
+      ball.y = fl - BR;
+      ball.vy = -Math.abs(ball.vy) * 0.8;
+      if (Math.abs(ball.vy) < 2.4) ball.vy = -2.6;
+    }
+
+    // Net
+    if (Math.abs(ball.x - nx) < BR + 2 && ball.y + BR > nt) ball.vx *= -0.55;
+
+    // Player hit (ball moving right → player)
+    if (ball.vx > 0 && ball.x + BR > px - rw && ball.x < px + rw &&
+        ball.y + BR > pY && ball.y - BR < pY + rh) {
+      const pos = (ball.y - (pY + rh*0.5)) / (rh*0.5);
+      ball.vx = -(3.2 + Math.random() * 1.8);
+      ball.vy = pos * 3.5 - 2.2 - Math.random();
+      ball.x = px - rw - BR - 2;
+    }
+
+    // AI hit (ball moving left → AI)
+    if (ball.vx < 0 && ball.x - BR < ax + rw && ball.x > ax - rw &&
+        ball.y + BR > aiY && ball.y - BR < aiY + rh) {
+      const pos = (ball.y - (aiY + rh*0.5)) / (rh*0.5);
+      ball.vx = (3.2 + Math.random() * 1.8);
+      ball.vy = pos * 3.5 - 2.2 - Math.random();
+      ball.x = ax + rw + BR + 2;
+    }
+
+    if (ball.x < -20 || ball.x > W + 20) reset();
+
+    // Rackets track ball
+    const halfRH = rh * 0.5;
+    const pSpd = ball.vx > 0 ? 5.5 : 2.8;
+    const aSpd = ball.vx < 0 ? 5.5 : 2.8;
+    pY  += Math.sign(ball.y - halfRH - pY)  * Math.min(Math.abs(ball.y - halfRH - pY),  pSpd);
+    aiY += Math.sign(ball.y - halfRH - aiY) * Math.min(Math.abs(ball.y - halfRH - aiY), aSpd);
+    pY  = Math.max(H*0.08, Math.min(fl - rh, pY));
+    aiY = Math.max(H*0.08, Math.min(fl - rh, aiY));
+
+    // Ball trail
+    trail.unshift({ x: ball.x, y: ball.y });
+    if (trail.length > 8) trail.pop();
+    for (let i = 1; i < trail.length; i++) {
+      const f = 1 - i / trail.length;
+      ctx.globalAlpha = f * 0.32;
+      ctx.beginPath(); ctx.arc(trail[i].x, trail[i].y, BR * f, 0, Math.PI*2);
+      ctx.fillStyle = '#ffe060'; ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+
+    // Ball shadow
+    ctx.globalAlpha = 0.28; ctx.fillStyle = '#000';
+    ctx.beginPath(); ctx.ellipse(ball.x, fl - 1, 5, 2, 0, 0, Math.PI*2); ctx.fill();
+    ctx.globalAlpha = 1;
+
+    // Ball
+    ctx.beginPath(); ctx.arc(ball.x, ball.y, BR, 0, Math.PI*2);
+    ctx.fillStyle = '#ffe040'; ctx.shadowBlur = 12; ctx.shadowColor = '#ffc800'; ctx.fill(); ctx.shadowBlur = 0;
+
+    // Player racket
+    const pgr = ctx.createLinearGradient(px - rw, 0, px + rw, 0);
+    pgr.addColorStop(0, '#007860'); pgr.addColorStop(1, '#00ffcc');
+    ctx.shadowBlur = 10; ctx.shadowColor = '#00ffcc'; ctx.fillStyle = pgr;
+    ctx.beginPath(); ctx.roundRect(px - rw, pY, rw*2, rh, rw); ctx.fill(); ctx.shadowBlur = 0;
+
+    // AI racket
+    const agr = ctx.createLinearGradient(ax - rw, 0, ax + rw, 0);
+    agr.addColorStop(0, '#cc3010'); agr.addColorStop(1, '#ff7755');
+    ctx.shadowBlur = 10; ctx.shadowColor = '#ff6644'; ctx.fillStyle = agr;
+    ctx.beginPath(); ctx.roundRect(ax - rw, aiY, rw*2, rh, rw); ctx.fill(); ctx.shadowBlur = 0;
+
     requestAnimationFrame(draw);
   }
   draw();
@@ -304,46 +362,135 @@ html, body {
   size();
   const ctx = c.getContext('2d');
 
-  const COLS = ['#e02838','#e8780a','#d82828','#e8d418','#d8b010'];
-  const fruits = [];
-  for (let i = 0; i < 5; i++) {
+  const G = 0.26;
+  const DEFS = [
+    { skin: '#3ab040', hi: '#80ee60', juice: '#e02838' },
+    { skin: '#e8780a', hi: '#ffac44', juice: '#ff8800' },
+    { skin: '#e02828', hi: '#ff6060', juice: '#ff2020' },
+    { skin: '#e8d418', hi: '#ffee58', juice: '#ffd800' },
+    { skin: '#7830c8', hi: '#b060ff', juice: '#8020cc' },
+  ];
+
+  let fruits = [], particles = [], bladeT = 0, slashTrail = [];
+
+  function spawnFruit() {
+    const d = DEFS[Math.floor(Math.random() * DEFS.length)];
+    const r = 9 + Math.random() * 8;
+    const peakH = H * (0.55 + Math.random() * 0.35);
     fruits.push({
-      x: W*(0.15+i*0.18), y: H*(0.3+Math.random()*0.4),
-      r: 10+Math.random()*10, vy: -1.2-Math.random()*0.8,
-      vx: (Math.random()-0.5)*0.8, color: COLS[i], angle: 0, spin: (Math.random()-0.5)*0.08,
+      x: W * (0.1 + Math.random() * 0.8), y: H + r + 5,
+      vx: (Math.random() - 0.5) * 2.2,
+      vy: -Math.sqrt(2 * G * peakH),
+      r, angle: Math.random() * Math.PI * 2,
+      spin: (Math.random() - 0.5) * 0.1,
+      skin: d.skin, hi: d.hi, juice: d.juice, sliced: false,
     });
   }
-  let t = 0;
+
+  // Seed 4 fruits, pre-simulated so they start mid-arc
+  for (let i = 0; i < 4; i++) {
+    const d = DEFS[i % DEFS.length];
+    const r = 9 + Math.random() * 8;
+    const peakH = H * (0.6 + Math.random() * 0.3);
+    const f = {
+      x: W * (0.1 + i * 0.22), y: H + r + 5,
+      vx: (Math.random() - 0.5) * 2,
+      vy: -Math.sqrt(2 * G * peakH),
+      r, angle: Math.random() * Math.PI * 2,
+      spin: (Math.random() - 0.5) * 0.1,
+      skin: d.skin, hi: d.hi, juice: d.juice, sliced: false,
+    };
+    const steps = 12 + i * 10;
+    for (let s = 0; s < steps; s++) { f.vy += G; f.x += f.vx; f.y += f.vy; f.angle += f.spin; }
+    fruits.push(f);
+  }
+
+  function juiceBurst(x, y, color, n) {
+    for (let i = 0; i < n; i++) {
+      const a = Math.random() * Math.PI * 2, spd = 1 + Math.random() * 3.5;
+      particles.push({ x, y, vx: Math.cos(a)*spd, vy: Math.sin(a)*spd - 1.5, color, r: 3 + Math.random()*3, life: 1 });
+    }
+  }
+
+  function drawFruit(f) {
+    ctx.save();
+    ctx.translate(f.x, f.y); ctx.rotate(f.angle);
+    const g = ctx.createRadialGradient(-f.r*.3, -f.r*.3, 0, 0, 0, f.r);
+    g.addColorStop(0, f.hi); g.addColorStop(0.55, f.skin); g.addColorStop(1, f.skin);
+    ctx.shadowBlur = 14; ctx.shadowColor = f.juice;
+    ctx.beginPath(); ctx.arc(0, 0, f.r, 0, Math.PI*2); ctx.fillStyle = g; ctx.fill();
+    const hg = ctx.createRadialGradient(-f.r*.28, -f.r*.3, 0, -f.r*.28, -f.r*.3, f.r*.42);
+    hg.addColorStop(0, 'rgba(255,255,255,0.38)'); hg.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = hg; ctx.fill(); ctx.shadowBlur = 0;
+    ctx.restore();
+  }
+
   function draw() {
-    ctx.fillStyle = '#040610'; ctx.fillRect(0,0,W,H);
+    ctx.fillStyle = '#040610'; ctx.fillRect(0, 0, W, H);
 
-    fruits.forEach(f => {
-      f.vy += 0.025; f.x += f.vx; f.y += f.vy; f.angle += f.spin;
-      if (f.y > H + f.r + 5) { f.y = -f.r; f.vy = -1.2 - Math.random()*0.8; f.x = W*(0.1+Math.random()*0.8); }
-      const g = ctx.createRadialGradient(f.x-f.r*.3, f.y-f.r*.3, 0, f.x, f.y, f.r);
-      g.addColorStop(0, '#fff'); g.addColorStop(0.3, f.color); g.addColorStop(1, f.color.replace(/[^#]/g,'') + '80');
-      ctx.beginPath(); ctx.arc(f.x, f.y, f.r, 0, Math.PI*2);
-      ctx.fillStyle = f.color; ctx.fill();
-    });
-
-    // Animated blade slash across the middle
-    const slashY = H*0.5 + Math.sin(t*0.8)*H*0.12;
-    const progress = (t * 0.5) % 1;
-    const sx = W * progress;
-    const trailLen = 40;
-    for (let i = 0; i < trailLen; i++) {
-      const px = sx - i * 3.5;
-      if (px < 0) break;
-      const py = slashY + i * 0.5;
-      const f = 1 - i/trailLen;
-      ctx.globalAlpha = f * 0.8;
-      ctx.fillStyle = `hsl(45,100%,${75+f*15}%)`;
-      ctx.shadowBlur = f*6; ctx.shadowColor = '#ffe080';
-      ctx.fillRect(px-1, py-1, 3, 3);
-      ctx.shadowBlur = 0;
+    // Particles
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const p = particles[i];
+      p.vy += G * 0.28; p.x += p.vx; p.y += p.vy; p.vx *= 0.96; p.life -= 0.028;
+      if (p.life <= 0) { particles.splice(i, 1); continue; }
+      ctx.globalAlpha = p.life;
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.r * p.life + 0.5, 0, Math.PI*2);
+      ctx.fillStyle = p.color; ctx.fill();
     }
     ctx.globalAlpha = 1;
-    t += 0.018;
+
+    // Fruits
+    for (let i = fruits.length - 1; i >= 0; i--) {
+      const f = fruits[i];
+      if (f.sliced) { fruits.splice(i, 1); continue; }
+      f.vy += G; f.x += f.vx; f.y += f.vy; f.angle += f.spin;
+      if (f.y > H + f.r + 20) { fruits.splice(i, 1); spawnFruit(); }
+    }
+    while (fruits.filter(f => !f.sliced).length < 3) spawnFruit();
+
+    fruits.forEach(f => { if (!f.sliced) drawFruit(f); });
+
+    // Blade sweep — diagonal arc, one sweep every ~2.8 s
+    bladeT += 0.018;
+    const CYCLE = 2.8 / 0.018;
+    const SLASH = 0.45 / 0.018;
+    const phase = bladeT % CYCLE;
+
+    if (phase < SLASH) {
+      const prog = phase / SLASH;
+      const bx = W * 0.05 + W * 0.9 * prog;
+      const by = H * 0.28 + Math.sin(prog * Math.PI) * H * 0.42;
+      slashTrail.push({ x: bx, y: by });
+      if (slashTrail.length > 28) slashTrail.shift();
+
+      // Collision
+      if (slashTrail.length >= 2) {
+        const pa = slashTrail[slashTrail.length - 2], pb = slashTrail[slashTrail.length - 1];
+        const sdx = pb.x - pa.x, sdy = pb.y - pa.y, slen = Math.sqrt(sdx*sdx + sdy*sdy) || 1;
+        fruits.forEach(f => {
+          if (f.sliced) return;
+          const t2 = Math.max(0, Math.min(1, ((f.x - pa.x)*sdx + (f.y - pa.y)*sdy) / (slen*slen)));
+          const nx2 = pa.x + t2*sdx, ny2 = pa.y + t2*sdy;
+          if ((f.x - nx2)*(f.x - nx2) + (f.y - ny2)*(f.y - ny2) < (f.r + 5)*(f.r + 5)) {
+            f.sliced = true;
+            juiceBurst(f.x, f.y, f.juice, 16);
+          }
+        });
+      }
+
+      // Draw trail
+      for (let i = 1; i < slashTrail.length; i++) {
+        const a = slashTrail[i-1], b = slashTrail[i];
+        const frac = i / slashTrail.length;
+        ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y);
+        ctx.lineWidth = frac * 10; ctx.lineCap = 'round';
+        ctx.strokeStyle = `hsla(45,100%,${75 + frac*15}%,${frac * 0.94})`;
+        ctx.shadowBlur = frac * 14; ctx.shadowColor = '#ffe080'; ctx.stroke(); ctx.shadowBlur = 0;
+      }
+    } else {
+      slashTrail = [];
+    }
+
     requestAnimationFrame(draw);
   }
   draw();
