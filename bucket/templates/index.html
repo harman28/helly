@@ -74,42 +74,33 @@
   #addBtn:hover { background: var(--accent-weak); border-color: var(--accent); }
   #fileInput { display: none; }
 
-  /* --- modal --- */
-  .modal-overlay {
+  /* --- password gate (full screen, shown before anything else) --- */
+  #gateScreen {
     display: none;
-    position: fixed;
-    inset: 0;
-    background: rgba(38, 37, 35, 0.35);
+    min-height: 100vh;
     align-items: center;
     justify-content: center;
-    padding: 20px;
-    z-index: 20;
   }
-  .modal-overlay.show { display: flex; }
-  .modal {
-    background: var(--card);
-    border-radius: 14px;
-    padding: 22px;
+  #gateScreen.show { display: flex; }
+  .gate {
     width: 100%;
-    max-width: 300px;
-    box-shadow: 0 12px 32px rgba(0,0,0,0.14);
+    max-width: 280px;
+    text-align: center;
+    padding: 20px;
   }
-  .modal-title {
-    font-size: 14.5px;
-    font-weight: 600;
-    margin-bottom: 12px;
-  }
+  .gate h1 { margin-bottom: 24px; }
   .pw-wrap {
     position: relative;
     margin-bottom: 10px;
+    text-align: left;
   }
-  .modal input {
+  .gate input, .modal input {
     width: 100%;
     padding: 10px 52px 10px 11px;
     border: 1px solid var(--border);
     border-radius: 8px;
     font-size: 14px;
-    background: var(--bg);
+    background: var(--card);
     color: var(--text);
   }
   .pw-toggle {
@@ -125,13 +116,8 @@
     cursor: pointer;
   }
   .pw-toggle:hover { color: var(--text); }
-  .modal-actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 8px;
-  }
   .btn {
-    padding: 8px 14px;
+    padding: 10px 14px;
     border: 1px solid var(--border);
     border-radius: 8px;
     background: var(--card);
@@ -140,16 +126,22 @@
     cursor: pointer;
   }
   .btn.primary {
+    width: 100%;
     background: var(--accent);
     border-color: var(--accent);
     color: #fff;
   }
-  #modalError {
+  #gateError {
     color: var(--danger);
     font-size: 12.5px;
     margin: -4px 0 10px;
     display: none;
+    text-align: left;
   }
+
+  /* --- app screen --- */
+  #appScreen { display: none; }
+  #appScreen.show { display: block; }
 
   /* --- sections / grid --- */
   .section { margin-bottom: 26px; }
@@ -236,7 +228,6 @@
   }
 
   .del {
-    display: none;
     position: absolute;
     top: -6px;
     right: 10px;
@@ -247,12 +238,12 @@
     background: var(--card);
     color: var(--muted);
     font-size: 12px;
+    display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
     z-index: 1;
   }
-  body.unlocked .del { display: flex; }
   .del:hover { color: var(--danger); border-color: var(--danger); }
 
   #empty {
@@ -263,13 +254,11 @@
   }
 
   .footer-actions {
-    display: none;
+    display: flex;
     justify-content: center;
-    gap: 18px;
     margin-top: 28px;
   }
-  body.unlocked .footer-actions { display: flex; }
-  .footer-actions button {
+  #clearBtn {
     border: none;
     background: none;
     color: var(--muted);
@@ -278,7 +267,6 @@
     padding: 0;
   }
   #clearBtn:hover { color: var(--danger); }
-  #lockBtn:hover { color: var(--text); }
 
   #dropHint {
     display: none;
@@ -297,7 +285,20 @@
 </style>
 </head>
 <body>
-<div class="wrap">
+
+<div id="gateScreen">
+  <div class="gate">
+    <h1>bucket</h1>
+    <div class="pw-wrap">
+      <input id="gatePw" type="password" autocomplete="current-password" placeholder="password">
+      <button class="pw-toggle" id="pwToggle" type="button" aria-label="Show password">show</button>
+    </div>
+    <div id="gateError">wrong password</div>
+    <button class="btn primary" id="gateSubmit" type="button">Enter</button>
+  </div>
+</div>
+
+<div class="wrap" id="appScreen">
   <header>
     <div>
       <h1>bucket</h1>
@@ -311,45 +312,28 @@
   <div id="empty" style="display:none">nothing here right now</div>
 
   <div class="footer-actions">
-    <button id="lockBtn" type="button">lock</button>
     <button id="clearBtn" type="button">clear all</button>
   </div>
 </div>
 
 <div id="dropHint">drop to upload</div>
 
-<div class="modal-overlay" id="modalOverlay">
-  <div class="modal">
-    <div class="modal-title">Enter password</div>
-    <div class="pw-wrap">
-      <input id="modalPw" type="password" autocomplete="current-password">
-      <button class="pw-toggle" id="pwToggle" type="button" aria-label="Show password">show</button>
-    </div>
-    <div id="modalError">wrong password</div>
-    <div class="modal-actions">
-      <button class="btn" id="modalCancel" type="button">Cancel</button>
-      <button class="btn primary" id="modalSubmit" type="button">Unlock</button>
-    </div>
-  </div>
-</div>
-
 <script>
+const gateScreen = document.getElementById('gateScreen');
+const appScreen = document.getElementById('appScreen');
+const gatePw = document.getElementById('gatePw');
+const gateError = document.getElementById('gateError');
+const gateSubmit = document.getElementById('gateSubmit');
+const pwToggle = document.getElementById('pwToggle');
+
 const sectionsEl = document.getElementById('sections');
 const emptyEl = document.getElementById('empty');
 const addBtn = document.getElementById('addBtn');
 const fileInput = document.getElementById('fileInput');
-const lockBtn = document.getElementById('lockBtn');
 const clearBtn = document.getElementById('clearBtn');
-const modalOverlay = document.getElementById('modalOverlay');
-const modalPw = document.getElementById('modalPw');
-const modalError = document.getElementById('modalError');
-const modalSubmit = document.getElementById('modalSubmit');
-const modalCancel = document.getElementById('modalCancel');
 const dropHint = document.getElementById('dropHint');
-const pwToggle = document.getElementById('pwToggle');
 
-let unlocked = false;
-let openPickerAfterUnlock = false;
+let authenticated = false;
 
 const TYPES = {
   pdf: 't-pdf', doc: 't-doc', docx: 't-doc', rtf: 't-doc',
@@ -435,76 +419,66 @@ function render(files) {
   });
 }
 
-function setUnlocked(v) {
-  unlocked = v;
-  document.body.classList.toggle('unlocked', v);
-}
-
-async function refresh() {
-  const res = await fetch('/api/files');
-  const data = await res.json();
-  setUnlocked(data.unlocked);
-  render(data.files);
-}
-
-function openModal() {
-  modalError.style.display = 'none';
-  modalPw.value = '';
-  modalPw.type = 'password';
+function showGate() {
+  authenticated = false;
+  appScreen.classList.remove('show');
+  gateScreen.classList.add('show');
+  gateError.style.display = 'none';
+  gatePw.value = '';
+  gatePw.type = 'password';
   pwToggle.textContent = 'show';
-  modalOverlay.classList.add('show');
-  modalPw.focus();
+  gatePw.focus();
 }
-function closeModal() {
-  modalOverlay.classList.remove('show');
+
+function showApp(files) {
+  authenticated = true;
+  gateScreen.classList.remove('show');
+  appScreen.classList.add('show');
+  render(files);
+}
+
+async function boot() {
+  const res = await fetch('/api/files');
+  if (res.status === 401) {
+    showGate();
+  } else {
+    const data = await res.json();
+    showApp(data.files);
+  }
 }
 
 pwToggle.addEventListener('click', () => {
-  const showing = modalPw.type === 'text';
-  modalPw.type = showing ? 'password' : 'text';
+  const showing = gatePw.type === 'text';
+  gatePw.type = showing ? 'password' : 'text';
   pwToggle.textContent = showing ? 'show' : 'hide';
-  modalPw.focus();
+  gatePw.focus();
 });
 
-addBtn.addEventListener('click', () => {
-  if (unlocked) {
-    fileInput.click();
-  } else {
-    openPickerAfterUnlock = true;
-    openModal();
-  }
-});
-modalCancel.addEventListener('click', () => { openPickerAfterUnlock = false; closeModal(); });
-modalOverlay.addEventListener('click', (e) => { if (e.target === modalOverlay) closeModal(); });
-
-async function doUnlock() {
-  modalError.style.display = 'none';
+async function doLogin() {
+  gateError.style.display = 'none';
   const res = await fetch('/api/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ password: modalPw.value }),
+    body: JSON.stringify({ password: gatePw.value }),
   });
   if (res.ok) {
-    closeModal();
-    setUnlocked(true);
-    await refresh();
-    if (openPickerAfterUnlock) {
-      openPickerAfterUnlock = false;
-      fileInput.click();
-    }
+    boot();
   } else {
-    modalError.style.display = 'block';
+    gateError.style.display = 'block';
   }
 }
-modalSubmit.addEventListener('click', doUnlock);
-modalPw.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') doUnlock();
-  if (e.key === 'Escape') closeModal();
-});
+gateSubmit.addEventListener('click', doLogin);
+gatePw.addEventListener('keydown', (e) => { if (e.key === 'Enter') doLogin(); });
 
-lockBtn.addEventListener('click', () => {
-  fetch('/api/logout', { method: 'POST' }).then(refresh);
-});
+async function refresh() {
+  const res = await fetch('/api/files');
+  if (res.status === 401) {
+    showGate();
+    return;
+  }
+  const data = await res.json();
+  render(data.files);
+}
 
 async function deleteFile(slug) {
   await fetch('/api/files/' + slug, { method: 'DELETE' });
@@ -525,16 +499,17 @@ async function uploadFiles(fileList) {
   refresh();
 }
 
+addBtn.addEventListener('click', () => fileInput.click());
 fileInput.addEventListener('change', () => uploadFiles(fileInput.files));
 
 let dragDepth = 0;
-window.addEventListener('dragenter', (e) => {
-  if (!unlocked) return;
+window.addEventListener('dragenter', () => {
+  if (!authenticated) return;
   dragDepth++;
   dropHint.classList.add('show');
 });
 window.addEventListener('dragleave', () => {
-  if (!unlocked) return;
+  if (!authenticated) return;
   dragDepth = Math.max(0, dragDepth - 1);
   if (dragDepth === 0) dropHint.classList.remove('show');
 });
@@ -543,12 +518,12 @@ window.addEventListener('drop', (e) => {
   e.preventDefault();
   dragDepth = 0;
   dropHint.classList.remove('show');
-  if (!unlocked) return;
+  if (!authenticated) return;
   uploadFiles(e.dataTransfer.files);
 });
 
-refresh();
-setInterval(refresh, 20000);
+boot();
+setInterval(() => { if (authenticated) refresh(); }, 20000);
 </script>
 </body>
 </html>

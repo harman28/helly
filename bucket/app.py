@@ -66,7 +66,9 @@ def index():
 
 @app.route("/api/files")
 def api_files():
-    return jsonify({"files": list_files(), "unlocked": is_unlocked(), "ttl_hours": TTL_HOURS})
+    if not is_unlocked():
+        abort(401)
+    return jsonify({"files": list_files(), "ttl_hours": TTL_HOURS})
 
 
 @app.route("/api/login", methods=["POST"])
@@ -79,12 +81,6 @@ def api_login():
         session.permanent = True
         return jsonify({"ok": True})
     return jsonify({"error": "wrong password"}), 401
-
-
-@app.route("/api/logout", methods=["POST"])
-def api_logout():
-    session.pop("unlocked", None)
-    return jsonify({"ok": True})
 
 
 @app.route("/api/upload", methods=["POST"])
@@ -127,6 +123,8 @@ def api_clear():
 
 @app.route("/f/<slug>/<path:filename>")
 def download(slug, filename):
+    if not is_unlocked():
+        abort(401)
     sweep_expired()
     folder = DATA_DIR / slug
     if not folder.is_dir():

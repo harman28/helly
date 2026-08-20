@@ -31,16 +31,18 @@ untracked/local-only) — without the negation this file would be silently ignor
 
 ## Design
 
-- **One shared bucket, no accounts.** Everyone with the URL sees the same file list.
-  Uploading, deleting a file, and clearing the whole bucket all require the shared
-  password (`BUCKET_PASSWORD`); downloading does not — that's the whole point, so a
-  library computer never needs to authenticate as anything.
-- **Automatic expiry is the real ephemerality guarantee.** `sweep_expired()` runs on
-  every read (`/`, `/api/files`, `/f/<slug>/<file>`) and deletes any upload older than
-  `TTL_HOURS` (default 6). This is a lazy sweep, not a scheduled job — no Railway cron
-  needed, and it's what makes "leaving files publicly downloadable" an acceptable risk
-  in the first place (matches the original ask: files must disappear on their own after
-  a few hours, not just be manually tidy-able).
+- **One shared bucket, no accounts — and now everything is behind the password,
+  including reads.** The original design left `GET /api/files` and `GET /f/<slug>/
+  <file>` unauthenticated on purpose (a library computer shouldn't need to log into
+  anything). That was deliberately reversed on explicit request: `/api/files` and the
+  download route both `abort(401)` when the session isn't unlocked, and the frontend
+  shows a full-screen password gate before rendering anything else — no file list, no
+  filenames, nothing is visible pre-auth. `POST /api/login` is unchanged; it's just no
+  longer the *optional* half of the app.
+- **Automatic expiry is still the real ephemerality guarantee**, independent of the
+  read-gating above. `sweep_expired()` runs on every read (`/api/files`, `/f/<slug>/
+  <file>`) and deletes any upload older than `TTL_HOURS` (default 12). This is a lazy
+  sweep, not a scheduled job — no Railway cron needed.
 - **Manual delete/clear are on top of that, not instead of it.** Once unlocked with the
   password, each file gets a delete button and there's a "clear all" — for when you
   don't want to wait out the TTL. Both automatic and manual paths were explicitly asked
@@ -75,12 +77,19 @@ untracked/local-only) — without the negation this file would be silently ignor
   files render under a section header per bucket, sorted newest-group-first. This was
   an explicit simplification request — exact per-file countdowns weren't wanted, just
   a coarse "grip" for how urgent a batch of files is.
-- **The primary CTA is "add files" (a plain `+`), not "unlock."** Clicking it opens a
-  file picker directly if already unlocked this session; if locked, it opens a small
-  password modal first, and only on success does it proceed to the file picker — so
-  the button's label always matches what it does (unlocking was never the *point*,
-  adding a file was). Delete crosses per-tile and the "lock"/"clear all" footer links
-  only appear once unlocked (`body.unlocked` class toggle, same mechanism as before).
+- **The primary CTA is "add files" (a plain `+`), not "unlock."** Since reaching the
+  app screen at all now requires having already passed the password gate, `+` just
+  opens the file picker directly — no per-click password check needed anymore (that
+  used to live on this button before reads were gated too; now the gate at page-load
+  covers it). Delete crosses are always visible on every tile, and the footer only has
+  "clear all" — there's no "lock"/logout affordance, by explicit request (`/api/logout`
+  was removed along with it; nothing in the UI could reach it anymore).
+- **`gatePw`/`gateSubmit` (a full-page screen, `#gateScreen`) replaced the old
+  password modal.** `boot()` calls `/api/files` on load; a 401 shows the gate, a 200
+  shows the app directly with that response's files — no separate "am I unlocked"
+  flag needed, the fetch's status *is* the auth check. `refresh()` (used by the 20s
+  poll and after delete/upload/clear) falls back to `showGate()` on a 401 too, in case
+  a session ever expires while the app is open.
 - The file list polls `/api/files` every 20s so a phone upload shows up on an
   already-open page without a manual refresh.
 
@@ -90,7 +99,8 @@ untracked/local-only) — without the negation this file would be silently ignor
   production — same "real runtime data needs a volume, never git" lesson as zoosnap.
 - `TTL_HOURS` — how long an upload survives before the lazy sweep deletes it. Default
   12 (raised from an initial 6 — 6h was judged too short in practice).
-- `BUCKET_PASSWORD` — required for any upload/delete/clear to work at all.
+- `BUCKET_PASSWORD` — required for anything at all now, including viewing the file
+  list or downloading — not just upload/delete/clear (see Design above).
 - `SECRET_KEY` — signs the Flask session cookie. Set to a real random value in
   production.
 
@@ -101,9 +111,12 @@ python3 -m venv .venv && source .venv/bin/activate && pip install -r requirement
 DATA_DIR=./data BUCKET_PASSWORD=test PORT=5400 python3 app.py
 ```
 
-## Deployment (pending)
+## Deployment
 
-Intended to run on Railway with a volume at `/data`, same pattern as zoosnap, at
-`bucket.hellyhome.nl`. Not yet deployed — Railway service creation and the DNS CNAME
-record on `hellyhome.nl` (wherever that's registered) are both steps that need this
-user's direct action/confirmation, not something to do unprompted.
+Live on Railway (project `bucket`, service `bucket`, sourced from this repo's
+`bucket/` subdirectory — see the root-directory note above) with a volume at `/data`,
+same pattern as zoosnap. Custom domain `bucket.hellyhome.nl` is verified and serving
+traffic (CNAME → the Railway-assigned target, plus a `_railway-verify` TXT record for
+ownership verification — both added by the user directly on `hellyhome.nl`'s DNS
+provider, not something this session can do). The plain Railway-provided domain
+(`*.up.railway.app`) also keeps working as a fallback.
