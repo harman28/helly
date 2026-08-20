@@ -9,7 +9,7 @@ from flask import Flask, abort, jsonify, render_template, request, send_from_dir
 DATA_DIR = Path(os.environ.get("DATA_DIR", "./data"))
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 
-TTL_HOURS = float(os.environ.get("TTL_HOURS", "6"))
+TTL_HOURS = float(os.environ.get("TTL_HOURS", "12"))
 BUCKET_PASSWORD = os.environ.get("BUCKET_PASSWORD")
 
 app = Flask(__name__)

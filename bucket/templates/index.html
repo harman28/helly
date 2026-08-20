@@ -25,15 +25,15 @@
     -webkit-font-smoothing: antialiased;
   }
   .wrap {
-    max-width: 560px;
+    max-width: 720px;
     margin: 0 auto;
     padding: 32px 20px 80px;
   }
   header {
     display: flex;
-    align-items: baseline;
+    align-items: center;
     justify-content: space-between;
-    margin-bottom: 24px;
+    margin-bottom: 28px;
   }
   h1 {
     font-size: 17px;
@@ -46,33 +46,68 @@
     font-size: 12.5px;
     margin-top: 2px;
   }
-  #lockBtn {
-    border: none;
-    background: none;
-    color: var(--muted);
-    font-size: 13px;
-    cursor: pointer;
-    padding: 4px 6px;
-  }
-  #lockBtn:hover { color: var(--text); }
 
-  #loginBox {
-    display: none;
-    gap: 8px;
-    margin-bottom: 20px;
+  #addBtn {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: var(--card);
+    color: var(--accent);
+    font-size: 20px;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: background 0.12s, border-color 0.12s;
   }
-  #loginBox.show { display: flex; }
-  #loginBox input {
-    flex: 1;
-    padding: 9px 10px;
+  #addBtn:hover { background: var(--accent-weak); border-color: var(--accent); }
+  #fileInput { display: none; }
+
+  /* --- modal --- */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(38, 37, 35, 0.35);
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    z-index: 20;
+  }
+  .modal-overlay.show { display: flex; }
+  .modal {
+    background: var(--card);
+    border-radius: 14px;
+    padding: 22px;
+    width: 100%;
+    max-width: 300px;
+    box-shadow: 0 12px 32px rgba(0,0,0,0.14);
+  }
+  .modal-title {
+    font-size: 14.5px;
+    font-weight: 600;
+    margin-bottom: 12px;
+  }
+  .modal input {
+    width: 100%;
+    padding: 10px 11px;
     border: 1px solid var(--border);
     border-radius: 8px;
     font-size: 14px;
-    background: var(--card);
+    background: var(--bg);
     color: var(--text);
+    margin-bottom: 10px;
   }
-  #loginBox button, .btn {
-    padding: 9px 14px;
+  .modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+  .btn {
+    padding: 8px 14px;
     border: 1px solid var(--border);
     border-radius: 8px;
     background: var(--card);
@@ -85,89 +120,156 @@
     border-color: var(--accent);
     color: #fff;
   }
-  #loginError {
+  #modalError {
     color: var(--danger);
     font-size: 12.5px;
-    margin: -12px 0 16px;
+    margin: -4px 0 10px;
     display: none;
   }
 
-  #dropzone {
-    display: none;
-    border: 1.5px dashed var(--border);
-    border-radius: 12px;
-    padding: 22px 16px;
-    text-align: center;
+  /* --- sections / grid --- */
+  .section { margin-bottom: 26px; }
+  .section-title {
     color: var(--muted);
-    font-size: 13.5px;
-    margin-bottom: 22px;
+    font-size: 11.5px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 12px;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+    gap: 18px 12px;
+  }
+  .tile {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    text-decoration: none;
+    color: inherit;
+    position: relative;
     cursor: pointer;
   }
-  #dropzone.show { display: block; }
-  #dropzone.drag { border-color: var(--accent); background: var(--accent-weak); color: var(--accent); }
-  #fileInput { display: none; }
-
-  #list { display: flex; flex-direction: column; gap: 8px; }
-  .row {
+  .icon {
+    width: 64px;
+    height: 76px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--card);
+    position: relative;
+    overflow: hidden;
     display: flex;
     align-items: center;
-    gap: 10px;
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 10px 12px;
+    justify-content: center;
   }
-  .row .name {
-    flex: 1;
-    min-width: 0;
+  .icon::before {
+    content: "";
+    position: absolute;
+    top: 0; right: 0;
+    width: 0; height: 0;
+    border-style: solid;
+    border-width: 0 14px 14px 0;
+    border-color: transparent var(--bg) transparent transparent;
+    opacity: 0.6;
+  }
+  .icon img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .icon .ext {
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    padding: 3px 6px;
+    border-radius: 4px;
+  }
+  .t-pdf .ext   { background: #f6e2df; color: #a4453a; }
+  .t-doc .ext   { background: #e1eaf3; color: #3b5f82; }
+  .t-sheet .ext { background: #e2ede7; color: #3f6e63; }
+  .t-slide .ext { background: #f4e3ea; color: #a13d63; }
+  .t-zip .ext   { background: #f1ebdd; color: #8a6d3b; }
+  .t-text .ext  { background: #ececea; color: #6b6b66; }
+  .t-generic .ext { background: #ececea; color: #8a877f; }
+
+  .name {
+    margin-top: 8px;
+    font-size: 12px;
+    line-height: 1.3;
+    max-height: 2.6em;
     overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    font-size: 13.5px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    word-break: break-word;
   }
-  .row .meta {
+  .size {
+    margin-top: 2px;
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  .del {
+    display: none;
+    position: absolute;
+    top: -6px;
+    right: 10px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: var(--card);
     color: var(--muted);
     font-size: 12px;
-    flex-shrink: 0;
-  }
-  .row a.dl {
-    color: var(--accent);
-    text-decoration: none;
-    font-size: 13px;
-    flex-shrink: 0;
-  }
-  .row button.del {
-    display: none;
-    border: none;
-    background: none;
-    color: var(--muted);
+    align-items: center;
+    justify-content: center;
     cursor: pointer;
-    font-size: 15px;
-    padding: 2px 4px;
-    flex-shrink: 0;
+    z-index: 1;
   }
-  body.unlocked .row button.del { display: inline-block; }
-  .row button.del:hover { color: var(--danger); }
+  body.unlocked .del { display: flex; }
+  .del:hover { color: var(--danger); border-color: var(--danger); }
 
   #empty {
     color: var(--muted);
     font-size: 13.5px;
     text-align: center;
-    padding: 40px 0;
+    padding: 60px 0;
   }
 
-  #clearBtn {
+  .footer-actions {
     display: none;
-    margin-top: 20px;
-    color: var(--muted);
-    background: none;
+    justify-content: center;
+    gap: 18px;
+    margin-top: 28px;
+  }
+  body.unlocked .footer-actions { display: flex; }
+  .footer-actions button {
     border: none;
+    background: none;
+    color: var(--muted);
     font-size: 12.5px;
     cursor: pointer;
     padding: 0;
   }
-  body.unlocked #clearBtn { display: inline-block; }
   #clearBtn:hover { color: var(--danger); }
+  #lockBtn:hover { color: var(--text); }
+
+  #dropHint {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(63, 110, 99, 0.08);
+    border: 2px dashed var(--accent);
+    align-items: center;
+    justify-content: center;
+    color: var(--accent);
+    font-size: 15px;
+    z-index: 15;
+    pointer-events: none;
+  }
+  #dropHint.show { display: flex; }
 </style>
 </head>
 <body>
@@ -177,38 +279,58 @@
       <h1>bucket</h1>
       <div class="ttl-note">files disappear after ~{{ ttl_hours|int }}h</div>
     </div>
-    <button id="lockBtn" type="button">unlock</button>
+    <button id="addBtn" type="button" title="Add files" aria-label="Add files">+</button>
+    <input id="fileInput" type="file" multiple>
   </header>
 
-  <div id="loginBox">
-    <input id="pw" type="password" placeholder="password" autocomplete="current-password">
-    <button class="btn primary" id="loginSubmit" type="button">go</button>
-  </div>
-  <div id="loginError">wrong password</div>
-
-  <div id="dropzone">
-    drop files here, or tap to choose
-    <input id="fileInput" type="file" multiple>
-  </div>
-
-  <div id="list"></div>
+  <div id="sections"></div>
   <div id="empty" style="display:none">nothing here right now</div>
 
-  <button id="clearBtn" type="button">clear all</button>
+  <div class="footer-actions">
+    <button id="lockBtn" type="button">lock</button>
+    <button id="clearBtn" type="button">clear all</button>
+  </div>
+</div>
+
+<div id="dropHint">drop to upload</div>
+
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <div class="modal-title">Enter password</div>
+    <input id="modalPw" type="password" autocomplete="current-password">
+    <div id="modalError">wrong password</div>
+    <div class="modal-actions">
+      <button class="btn" id="modalCancel" type="button">Cancel</button>
+      <button class="btn primary" id="modalSubmit" type="button">Unlock</button>
+    </div>
+  </div>
 </div>
 
 <script>
-const listEl = document.getElementById('list');
+const sectionsEl = document.getElementById('sections');
 const emptyEl = document.getElementById('empty');
-const lockBtn = document.getElementById('lockBtn');
-const loginBox = document.getElementById('loginBox');
-const loginError = document.getElementById('loginError');
-const pwInput = document.getElementById('pw');
-const dropzone = document.getElementById('dropzone');
+const addBtn = document.getElementById('addBtn');
 const fileInput = document.getElementById('fileInput');
+const lockBtn = document.getElementById('lockBtn');
 const clearBtn = document.getElementById('clearBtn');
+const modalOverlay = document.getElementById('modalOverlay');
+const modalPw = document.getElementById('modalPw');
+const modalError = document.getElementById('modalError');
+const modalSubmit = document.getElementById('modalSubmit');
+const modalCancel = document.getElementById('modalCancel');
+const dropHint = document.getElementById('dropHint');
 
 let unlocked = false;
+let openPickerAfterUnlock = false;
+
+const TYPES = {
+  pdf: 't-pdf', doc: 't-doc', docx: 't-doc', rtf: 't-doc',
+  xls: 't-sheet', xlsx: 't-sheet', csv: 't-sheet', numbers: 't-sheet',
+  ppt: 't-slide', pptx: 't-slide', key: 't-slide',
+  zip: 't-zip', rar: 't-zip', '7z': 't-zip', tar: 't-zip', gz: 't-zip',
+  txt: 't-text', md: 't-text',
+};
+const IMAGE_EXTS = new Set(['png','jpg','jpeg','gif','webp','svg','heic','bmp']);
 
 function fmtSize(bytes) {
   if (bytes < 1024) return bytes + ' B';
@@ -216,37 +338,78 @@ function fmtSize(bytes) {
   return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
 }
 
-function fmtRemaining(expiresAt) {
-  const secs = expiresAt - Date.now() / 1000;
-  if (secs <= 0) return 'expiring…';
-  const h = Math.floor(secs / 3600);
-  const m = Math.floor((secs % 3600) / 60);
-  if (h > 0) return `${h}h ${m}m left`;
-  return `${m}m left`;
+function extOf(filename) {
+  const i = filename.lastIndexOf('.');
+  return i === -1 ? '' : filename.slice(i + 1).toLowerCase();
+}
+
+function iconFor(filename) {
+  const ext = extOf(filename);
+  if (IMAGE_EXTS.has(ext)) return { image: true };
+  const cls = TYPES[ext] || 't-generic';
+  const label = ext ? ext.slice(0, 4).toUpperCase() : 'FILE';
+  return { image: false, cls, label };
+}
+
+function hoursGroup(expiresAt) {
+  const secsLeft = expiresAt - Date.now() / 1000;
+  const hours = Math.max(1, Math.ceil(secsLeft / 3600));
+  return hours;
+}
+
+function tileHtml(f) {
+  const icon = iconFor(f.filename);
+  const url = `/f/${f.slug}/${encodeURIComponent(f.filename)}`;
+  const iconInner = icon.image
+    ? `<img src="${url}" alt="">`
+    : `<span class="ext">${icon.label}</span>`;
+  const iconClass = icon.image ? '' : icon.cls;
+  return `
+    <a class="tile" href="${url}">
+      <div class="icon ${iconClass}">${iconInner}</div>
+      <div class="name">${f.filename}</div>
+      <div class="size">${fmtSize(f.size)}</div>
+      <button class="del" title="delete" data-slug="${f.slug}" type="button">✕</button>
+    </a>
+  `;
 }
 
 function render(files) {
-  listEl.innerHTML = '';
+  sectionsEl.innerHTML = '';
   emptyEl.style.display = files.length ? 'none' : 'block';
+
+  const groups = new Map();
   for (const f of files) {
-    const row = document.createElement('div');
-    row.className = 'row';
-    row.innerHTML = `
-      <span class="name">${f.filename}</span>
-      <span class="meta">${fmtSize(f.size)} · ${fmtRemaining(f.expires_at)}</span>
-      <a class="dl" href="/f/${f.slug}/${encodeURIComponent(f.filename)}">download</a>
-      <button class="del" title="delete" data-slug="${f.slug}">✕</button>
-    `;
-    row.querySelector('.del').addEventListener('click', () => deleteFile(f.slug));
-    listEl.appendChild(row);
+    const h = hoursGroup(f.expires_at);
+    if (!groups.has(h)) groups.set(h, []);
+    groups.get(h).push(f);
   }
+  const hours = [...groups.keys()].sort((a, b) => b - a);
+
+  for (const h of hours) {
+    const section = document.createElement('div');
+    section.className = 'section';
+    const label = h <= 1 ? '< 1h left' : `${h}h left`;
+    section.innerHTML = `<div class="section-title">${label}</div><div class="grid"></div>`;
+    const grid = section.querySelector('.grid');
+    for (const f of groups.get(h)) {
+      grid.insertAdjacentHTML('beforeend', tileHtml(f));
+    }
+    sectionsEl.appendChild(section);
+  }
+
+  sectionsEl.querySelectorAll('.del').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      deleteFile(btn.dataset.slug);
+    });
+  });
 }
 
 function setUnlocked(v) {
   unlocked = v;
   document.body.classList.toggle('unlocked', v);
-  dropzone.classList.toggle('show', v);
-  lockBtn.textContent = v ? 'lock' : 'unlock';
 }
 
 async function refresh() {
@@ -256,32 +419,55 @@ async function refresh() {
   render(data.files);
 }
 
-lockBtn.addEventListener('click', () => {
+function openModal() {
+  modalError.style.display = 'none';
+  modalPw.value = '';
+  modalOverlay.classList.add('show');
+  modalPw.focus();
+}
+function closeModal() {
+  modalOverlay.classList.remove('show');
+}
+
+addBtn.addEventListener('click', () => {
   if (unlocked) {
-    fetch('/api/logout', { method: 'POST' }).then(refresh);
+    fileInput.click();
   } else {
-    loginBox.classList.toggle('show');
-    pwInput.focus();
+    openPickerAfterUnlock = true;
+    openModal();
   }
 });
+modalCancel.addEventListener('click', () => { openPickerAfterUnlock = false; closeModal(); });
+modalOverlay.addEventListener('click', (e) => { if (e.target === modalOverlay) closeModal(); });
 
-async function doLogin() {
-  loginError.style.display = 'none';
+async function doUnlock() {
+  modalError.style.display = 'none';
   const res = await fetch('/api/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ password: pwInput.value }),
+    body: JSON.stringify({ password: modalPw.value }),
   });
   if (res.ok) {
-    pwInput.value = '';
-    loginBox.classList.remove('show');
-    refresh();
+    closeModal();
+    setUnlocked(true);
+    await refresh();
+    if (openPickerAfterUnlock) {
+      openPickerAfterUnlock = false;
+      fileInput.click();
+    }
   } else {
-    loginError.style.display = 'block';
+    modalError.style.display = 'block';
   }
 }
-document.getElementById('loginSubmit').addEventListener('click', doLogin);
-pwInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') doLogin(); });
+modalSubmit.addEventListener('click', doUnlock);
+modalPw.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') doUnlock();
+  if (e.key === 'Escape') closeModal();
+});
+
+lockBtn.addEventListener('click', () => {
+  fetch('/api/logout', { method: 'POST' }).then(refresh);
+});
 
 async function deleteFile(slug) {
   await fetch('/api/files/' + slug, { method: 'DELETE' });
@@ -302,13 +488,25 @@ async function uploadFiles(fileList) {
   refresh();
 }
 
-dropzone.addEventListener('click', () => fileInput.click());
 fileInput.addEventListener('change', () => uploadFiles(fileInput.files));
-dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('drag'); });
-dropzone.addEventListener('dragleave', () => dropzone.classList.remove('drag'));
-dropzone.addEventListener('drop', (e) => {
+
+let dragDepth = 0;
+window.addEventListener('dragenter', (e) => {
+  if (!unlocked) return;
+  dragDepth++;
+  dropHint.classList.add('show');
+});
+window.addEventListener('dragleave', () => {
+  if (!unlocked) return;
+  dragDepth = Math.max(0, dragDepth - 1);
+  if (dragDepth === 0) dropHint.classList.remove('show');
+});
+window.addEventListener('dragover', (e) => e.preventDefault());
+window.addEventListener('drop', (e) => {
   e.preventDefault();
-  dropzone.classList.remove('drag');
+  dragDepth = 0;
+  dropHint.classList.remove('show');
+  if (!unlocked) return;
   uploadFiles(e.dataTransfer.files);
 });
 

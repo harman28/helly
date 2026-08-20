@@ -59,18 +59,37 @@ untracked/local-only) — without the negation this file would be silently ignor
   where the stakes of a guessed password are near zero), this app guards real personal
   documents being uploaded from a phone, so `/api/login` returns 503 rather than
   silently accepting a guessable default if the env var is unset.
-- **UI is deliberately minimal**: one page, neutral palette, system font stack, no
-  loud colors/animation. Files render as plain rows (name · size · time remaining ·
-  download). Password unlock is a small text toggle, not a prominent button, since
-  most visits (library computer downloading) never need it. The file list polls
-  `/api/files` every 20s so a phone upload shows up on an already-open page without a
-  manual refresh.
+- **UI is a Finder/Explorer-style icon grid, not a list.** One page, neutral palette,
+  system font stack, no loud colors/animation. Each tile shows a type badge (extension
+  text on a soft per-type tint — pdf/doc/sheet/slide/zip/text/generic) or, for image
+  extensions, an actual `<img>` thumbnail pointed straight at the download URL (works
+  fine despite the download route's `as_attachment=True` — browsers only honor
+  `Content-Disposition: attachment` on top-level navigation/direct downloads, not on
+  `<img src>` sub-resource fetches, so no separate thumbnail endpoint was needed).
+  Filename and size sit below each icon; the goal (per explicit ask) is "know the file
+  type, most of the name, and the size at a glance," matching how a real file browser
+  reads, not a spreadsheet-style row.
+- **Files are grouped by hours-remaining, not shown with a per-file countdown.**
+  `hoursGroup()` in the template buckets each file into a `Math.ceil` hour count (so a
+  freshly-uploaded file reads as "12h left" immediately rather than "11h left"), and
+  files render under a section header per bucket, sorted newest-group-first. This was
+  an explicit simplification request — exact per-file countdowns weren't wanted, just
+  a coarse "grip" for how urgent a batch of files is.
+- **The primary CTA is "add files" (a plain `+`), not "unlock."** Clicking it opens a
+  file picker directly if already unlocked this session; if locked, it opens a small
+  password modal first, and only on success does it proceed to the file picker — so
+  the button's label always matches what it does (unlocking was never the *point*,
+  adding a file was). Delete crosses per-tile and the "lock"/"clear all" footer links
+  only appear once unlocked (`body.unlocked` class toggle, same mechanism as before).
+- The file list polls `/api/files` every 20s so a phone upload shows up on an
+  already-open page without a manual refresh.
 
 ## Env vars
 
 - `DATA_DIR` — where uploads live. Set to a Railway volume mount (e.g. `/data`) in
   production — same "real runtime data needs a volume, never git" lesson as zoosnap.
-- `TTL_HOURS` — how long an upload survives before the lazy sweep deletes it. Default 6.
+- `TTL_HOURS` — how long an upload survives before the lazy sweep deletes it. Default
+  12 (raised from an initial 6 — 6h was judged too short in practice).
 - `BUCKET_PASSWORD` — required for any upload/delete/clear to work at all.
 - `SECRET_KEY` — signs the Flask session cookie. Set to a real random value in
   production.
