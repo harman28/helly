@@ -91,16 +91,32 @@
     font-weight: 600;
     margin-bottom: 12px;
   }
+  .pw-wrap {
+    position: relative;
+    margin-bottom: 10px;
+  }
   .modal input {
     width: 100%;
-    padding: 10px 11px;
+    padding: 10px 52px 10px 11px;
     border: 1px solid var(--border);
     border-radius: 8px;
     font-size: 14px;
     background: var(--bg);
     color: var(--text);
-    margin-bottom: 10px;
   }
+  .pw-toggle {
+    position: absolute;
+    top: 0;
+    right: 0;
+    height: 100%;
+    padding: 0 12px;
+    border: none;
+    background: none;
+    color: var(--muted);
+    font-size: 12px;
+    cursor: pointer;
+  }
+  .pw-toggle:hover { color: var(--text); }
   .modal-actions {
     display: flex;
     justify-content: flex-end;
@@ -297,7 +313,10 @@
 <div class="modal-overlay" id="modalOverlay">
   <div class="modal">
     <div class="modal-title">Enter password</div>
-    <input id="modalPw" type="password" autocomplete="current-password">
+    <div class="pw-wrap">
+      <input id="modalPw" type="password" autocomplete="current-password">
+      <button class="pw-toggle" id="pwToggle" type="button" aria-label="Show password">show</button>
+    </div>
     <div id="modalError">wrong password</div>
     <div class="modal-actions">
       <button class="btn" id="modalCancel" type="button">Cancel</button>
@@ -319,6 +338,7 @@ const modalError = document.getElementById('modalError');
 const modalSubmit = document.getElementById('modalSubmit');
 const modalCancel = document.getElementById('modalCancel');
 const dropHint = document.getElementById('dropHint');
+const pwToggle = document.getElementById('pwToggle');
 
 let unlocked = false;
 let openPickerAfterUnlock = false;
@@ -422,12 +442,21 @@ async function refresh() {
 function openModal() {
   modalError.style.display = 'none';
   modalPw.value = '';
+  modalPw.type = 'password';
+  pwToggle.textContent = 'show';
   modalOverlay.classList.add('show');
   modalPw.focus();
 }
 function closeModal() {
   modalOverlay.classList.remove('show');
 }
+
+pwToggle.addEventListener('click', () => {
+  const showing = modalPw.type === 'text';
+  modalPw.type = showing ? 'password' : 'text';
+  pwToggle.textContent = showing ? 'show' : 'hide';
+  modalPw.focus();
+});
 
 addBtn.addEventListener('click', () => {
   if (unlocked) {
