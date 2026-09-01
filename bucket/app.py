@@ -12,6 +12,11 @@ DATA_DIR.mkdir(parents=True, exist_ok=True)
 TTL_HOURS = float(os.environ.get("TTL_HOURS", "12"))
 BUCKET_PASSWORD = os.environ.get("BUCKET_PASSWORD")
 
+# Served inline (viewable in-browser) instead of force-downloaded. SVG is deliberately
+# excluded even though it's an image format: an SVG can embed <script>, and serving one
+# inline (as a top-level document, not sandboxed inside an <img> tag) would run it.
+INLINE_EXTS = {"png", "jpg", "jpeg", "gif", "webp", "heic", "bmp"}
+
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev-insecure-secret-change-me")
 
@@ -129,7 +134,8 @@ def download(slug, filename):
     folder = DATA_DIR / slug
     if not folder.is_dir():
         abort(404)
-    return send_from_directory(folder, filename, as_attachment=True)
+    ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+    return send_from_directory(folder, filename, as_attachment=ext not in INLINE_EXTS)
 
 
 if __name__ == "__main__":
