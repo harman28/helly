@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Redirecting…</title>
+<script>
+// Short-link redirects. Add a row here to add a new short link —
+// no new folder needed. Path is matched without leading/trailing slashes.
+var REDIRECTS = {
+  "v": "https://vimeo.com/1173357279/9d7981c395",
+  "q": "https://harman28.github.io/monarchquiz/",
+  "s": "https://swellgarfo.com/scattergories/"
+};
+
+var path = location.pathname.replace(/^\/+|\/+$/g, "");
+var target = REDIRECTS[path];
+if (target) {
+  location.replace(target);
+}
+</script>
+</head>
+<body>
+<p id="msg">Page not found.</p>
+<script>
+if (target) {
+  document.getElementById("msg").innerHTML =
+    'Redirecting to <a href="' + target + '">' + target + "</a>…";
+}
+</script>
+</body>
+</html>
