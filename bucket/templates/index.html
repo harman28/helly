@@ -256,9 +256,10 @@
   .footer-actions {
     display: flex;
     justify-content: center;
+    gap: 18px;
     margin-top: 28px;
   }
-  #clearBtn {
+  #clearBtn, #logoutBtn {
     border: none;
     background: none;
     color: var(--muted);
@@ -267,6 +268,7 @@
     padding: 0;
   }
   #clearBtn:hover { color: var(--danger); }
+  #logoutBtn:hover { color: var(--text); }
 
   #dropHint {
     display: none;
@@ -313,6 +315,7 @@
 
   <div class="footer-actions">
     <button id="clearBtn" type="button">clear all</button>
+    <button id="logoutBtn" type="button">log out</button>
   </div>
 </div>
 
@@ -331,6 +334,7 @@ const emptyEl = document.getElementById('empty');
 const addBtn = document.getElementById('addBtn');
 const fileInput = document.getElementById('fileInput');
 const clearBtn = document.getElementById('clearBtn');
+const logoutBtn = document.getElementById('logoutBtn');
 const dropHint = document.getElementById('dropHint');
 
 let authenticated = false;
@@ -489,6 +493,11 @@ clearBtn.addEventListener('click', async () => {
   if (!confirm('Delete everything in the bucket?')) return;
   await fetch('/api/clear', { method: 'POST' });
   refresh();
+});
+
+logoutBtn.addEventListener('click', async () => {
+  await fetch('/api/logout', { method: 'POST' });
+  showGate();
 });
 
 async function uploadFiles(fileList) {

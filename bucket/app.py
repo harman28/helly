@@ -88,6 +88,12 @@ def api_login():
     return jsonify({"error": "wrong password"}), 401
 
 
+@app.route("/api/logout", methods=["POST"])
+def api_logout():
+    session.pop("unlocked", None)
+    return jsonify({"ok": True})
+
+
 @app.route("/api/upload", methods=["POST"])
 def api_upload():
     if not is_unlocked():

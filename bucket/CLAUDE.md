@@ -81,9 +81,11 @@ untracked/local-only) — without the negation this file would be silently ignor
   app screen at all now requires having already passed the password gate, `+` just
   opens the file picker directly — no per-click password check needed anymore (that
   used to live on this button before reads were gated too; now the gate at page-load
-  covers it). Delete crosses are always visible on every tile, and the footer only has
-  "clear all" — there's no "lock"/logout affordance, by explicit request (`/api/logout`
-  was removed along with it; nothing in the UI could reach it anymore).
+  covers it). Delete crosses are always visible on every tile. The footer has "clear
+  all" and "log out" — `/api/logout` was removed at one point (see git history) and
+  then reinstated on a later explicit request; `log out` just clears the session
+  cookie server-side and shows the password gate again, no confirmation needed since
+  it's non-destructive.
 - **`gatePw`/`gateSubmit` (a full-page screen, `#gateScreen`) replaced the old
   password modal.** `boot()` calls `/api/files` on load; a 401 shows the gate, a 200
   shows the app directly with that response's files — no separate "am I unlocked"
